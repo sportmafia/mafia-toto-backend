@@ -413,12 +413,25 @@
     // ═══════════════════════════════════════════
     async function boot() {
       try {
-        const auth = firebase.auth();
-        let user = auth.currentUser;
-        if (!user) { const c = await auth.signInAnonymously(); user = c.user; }
-        const token = await user.getIdToken(true);
+        // Dual-mode: try Firebase auth first, fall back to hostless mode
+        let connectOpts;
+        const isHostless = sessionStorage.getItem('hostless_roomId') === roomId;
 
-        socket = io({ auth: { token } });
+        if (isHostless) {
+          // Hostless mode — no Firebase auth needed
+          console.log('[Game] Hostless mode — connecting without Firebase auth');
+          connectOpts = { auth: { hostless: true } };
+        } else {
+          // Normal mode — Firebase auth
+          const auth = firebase.auth();
+          let user = auth.currentUser;
+          if (!user) { const c = await auth.signInAnonymously(); user = c.user; }
+          const token = await user.getIdToken(true);
+          connectOpts = { auth: { token } };
+        }
+
+        const apiBase = (window.__APP_CONFIG__ && window.__APP_CONFIG__.API_BASE) || '';
+        socket = apiBase ? io(apiBase, connectOpts) : io(connectOpts);
 
         socket.on('connect', () => {
           console.log('[Game] connected', socket.id);
@@ -975,7 +988,9 @@
       const container = $('timer-container');
       if (!container) return;
       const gp = snapshot ? (snapshot.gamePhase || 'waiting') : 'waiting';
-      container.style.display = (gp === 'speeches' && timerValue !== null) ? 'flex' : 'none';
+      // Показываем таймер во время речей, голосования, ночи и стрельбы
+      const timerPhases = ['speeches', 'voting', 'night', 'shooting'];
+      container.style.display = (timerPhases.includes(gp) && timerValue !== null) ? 'flex' : 'none';
     }
 
     // ═══════════════════════════════════════════

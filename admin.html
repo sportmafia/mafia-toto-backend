@@ -188,7 +188,7 @@
       if (!adminPwd) return;
       document.getElementById('auth-box').style.display = 'none';
       document.getElementById('admin-wrap').classList.add('visible');
-      socket = io();
+      socket = io({ auth: { hostless: true } });
       socket.on('connect', () => {
         console.log('[Admin] Connected');
         loadRooms();
