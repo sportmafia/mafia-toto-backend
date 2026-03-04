@@ -894,11 +894,14 @@ io.use(async (socket, next) => {
   const token = socket.handshake.auth?.token;
 
   if (isHostless) {
-    // Hostless — assign a guest user ID based on socket.id
-    socket.data.userId = 'guest_' + socket.id;
+    // Hostless — reuse playerId from handshake if provided (lobby→game reconnect),
+    // otherwise assign a new guest ID
+    const reconnectId = socket.handshake.auth?.playerId;
+    socket.data.userId = reconnectId || ('guest_' + socket.id);
     socket.data.firebaseUid = null;
     socket.data.isHostless = true;
-    console.log('[auth] Hostless guest connected:', socket.data.userId);
+    console.log('[auth] Hostless guest connected:', socket.data.userId,
+                reconnectId ? '(reconnect)' : '(new)');
     return next();
   }
 

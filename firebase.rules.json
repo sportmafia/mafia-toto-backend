@@ -1,0 +1,121 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      "$roomId": {
+        ".write": "auth != null && ((!data.exists() && newData.child('meta/hostUid').val() === auth.uid) || (data.exists() && data.child('meta/hostUid').val() === auth.uid))",
+        ".read": "auth != null",
+        "meta": {
+          ".write": "auth != null && (!data.exists() || data.child('hostUid').val() === auth.uid)"
+        },
+        "stateVersion": {
+          ".write": "auth != null && root.child('rooms/' + $roomId + '/meta/hostUid').val() === auth.uid"
+        },
+        "publicState": {
+          ".read": "auth != null",
+          ".write": "auth != null && root.child('rooms/' + $roomId + '/meta/hostUid').val() === auth.uid",
+          "fouls": {
+            ".write": "auth != null"
+          }
+        },
+        "foulVotes": {
+          ".read": "auth != null",
+          "$voteId": {
+            ".write": "auth != null && !data.exists()",
+            "votes": {
+              "$tokenHash": {
+                ".write": "auth != null && root.child('rooms/' + $roomId + '/privateByToken/' + $tokenHash + '/ownerUid').val() === auth.uid"
+              }
+            },
+            "status": {
+              ".write": "auth != null"
+            },
+            "resolvedAt": {
+              ".write": "auth != null"
+            },
+            "closedBy": {
+              ".write": "auth != null"
+            }
+          }
+        },
+        "fouls": {
+          ".read": "auth != null",
+          ".write": "auth != null"
+        },
+        "tableEvents": {
+          ".read": "auth != null",
+          ".write": "auth != null"
+        },
+        "nominations": {
+          ".read": "auth != null",
+          ".write": "auth != null"
+        },
+        "timers": {
+          ".read": "auth != null",
+          ".write": "auth != null && root.child('rooms/' + $roomId + '/meta/hostUid').val() === auth.uid"
+        },
+        "links": {
+          ".read": "auth != null && root.child('rooms/' + $roomId + '/meta/hostUid').val() === auth.uid",
+          "$tokenHash": {
+            ".write": "auth != null && root.child('rooms/' + $roomId + '/meta/hostUid').val() === auth.uid"
+          }
+        },
+        "privateByToken": {
+          "$tokenHash": {
+            ".read": "auth != null && root.child('rooms/' + $roomId + '/privateByToken/' + $tokenHash + '/ownerUid').val() === auth.uid",
+            ".write": "auth != null && (root.child('rooms/' + $roomId + '/meta/hostUid').val() === auth.uid || root.child('rooms/' + $roomId + '/privateByToken/' + $tokenHash + '/ownerUid').val() === auth.uid)"
+          }
+        },
+        "presence": {
+          ".read": "auth != null",
+          "$kind": {
+            "$id": {
+              ".write": "auth != null"
+            }
+          }
+        },
+        "judgeMirrorState": {
+          ".read": "auth != null && root.child('rooms/' + $roomId + '/meta/hostUid').val() === auth.uid",
+          ".write": "auth != null && root.child('rooms/' + $roomId + '/meta/hostUid').val() === auth.uid"
+        },
+        "settings": {
+          ".read": "auth != null",
+          ".write": "auth != null && root.child('rooms/' + $roomId + '/meta/hostUid').val() === auth.uid"
+        },
+        "nightActions": {
+          ".read": "auth != null",
+          "$actionId": {
+            ".write": "auth != null"
+          }
+        },
+        "dayProposals": {
+          ".read": "auth != null",
+          "$proposalId": {
+            ".write": "auth != null"
+          }
+        },
+        "dayVotes": {
+          ".read": "auth != null",
+          "$tokenHash": {
+            ".write": "auth != null && root.child('rooms/' + $roomId + '/privateByToken/' + $tokenHash + '/ownerUid').val() === auth.uid"
+          }
+        },
+        "roles": {
+          ".write": "auth != null && root.child('rooms/' + $roomId + '/meta/hostUid').val() === auth.uid",
+          ".read": "auth != null && (root.child('rooms/' + $roomId + '/meta/hostUid').val() === auth.uid || root.child('rooms/' + $roomId + '/publicState/revealRoles').val() === true || root.child('rooms/' + $roomId + '/publicState/isGameOver').val() === true)"
+        },
+        "$other": {
+          ".read": false,
+          ".write": false
+        }
+      }
+    },
+    "overlays": {
+      "$channelId": {
+        ".read": true,
+        ".write": "auth != null && auth.token.email == $channelId + '@mafia.com'"
+      }
+    }
+  }
+}

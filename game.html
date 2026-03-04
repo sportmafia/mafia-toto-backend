@@ -419,8 +419,9 @@
 
         if (isHostless) {
           // Hostless mode — no Firebase auth needed
-          console.log('[Game] Hostless mode — connecting without Firebase auth');
-          connectOpts = { auth: { hostless: true } };
+          const savedPlayerId = sessionStorage.getItem('hostless_playerId') || '';
+          console.log('[Game] Hostless mode — connecting without Firebase auth, playerId:', savedPlayerId);
+          connectOpts = { auth: { hostless: true, playerId: savedPlayerId } };
         } else {
           // Normal mode — Firebase auth
           const auth = firebase.auth();
