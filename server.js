@@ -1271,6 +1271,7 @@ io.on('connection', (socket) => {
           maxPlayers,
           phase: 'lobby',
           createdAt: Date.now(),
+          hostless: socket.data.isHostless || false,
           players: new Map()
       };
 
@@ -1487,6 +1488,13 @@ io.on('connection', (socket) => {
       currentRoomId   = roomId;
       currentPlayerId = userId;
 
+      // Cancel grace timer if reconnecting
+      if (room.graceTimer) {
+          clearTimeout(room.graceTimer);
+          delete room.graceTimer;
+          console.log(`[Room ${roomId}] Grace timer cancelled — player reconnected`);
+      }
+
       socket.join(roomId);
 
       // Send personal role (с партнёрами для мафии)
@@ -1498,6 +1506,36 @@ io.on('connection', (socket) => {
 
       console.log(`[Room ${roomId}] "${player.nickname}" joined game table (seat ${player.seat})`);
       callback({ success: true, snapshot, playerId: userId });
+
+      // Hostless: auto-start speeches when ALL players have reconnected
+      if (room.hostless && room.phase === 'active_game' && !room.gameAutoStarted) {
+          const allConnected = Array.from(room.players.values())
+              .every(p => p.isConnected);
+          if (allConnected) {
+              room.gameAutoStarted = true;
+              console.log(`[Room ${roomId}] All players reconnected — auto-starting speeches`);
+              // Small delay so clients finish rendering
+              setTimeout(() => {
+                  const r = rooms.get(roomId);
+                  if (!r || r.phase !== 'active_game') return;
+                  r.gamePhase = 'speeches';
+                  r.speechIndex = 0;
+                  buildSpeechOrder(r);
+                  r.currentSpeaker = r.speechOrder[0] || null;
+                  startSpeechTimer(r);
+                  const snap = buildRoomSnapshot(r);
+                  io.to(roomId).emit('room:updated', snap);
+                  io.to(roomId).emit('game:phase_changed', {
+                      gamePhase: 'speeches',
+                      speaker: r.currentSpeaker,
+                      speechOrder: r.speechOrder,
+                      speechIndex: 0,
+                      dayNumber: r.dayNumber,
+                      rules: r.gameRules
+                  });
+              }, 2000);
+          }
+      }
   });
 
   // ─────────────────────────────────────────────
@@ -1827,12 +1865,32 @@ io.on('connection', (socket) => {
             const snapshot = buildRoomSnapshot(room);
             io.to(currentRoomId).emit('room:updated', snapshot);
 
-            // Удаляем пустые комнаты
+            // Удаляем пустые комнаты (с grace period для активных игр)
             const anyConnected = Array.from(room.players.values()).some(p => p.isConnected);
             if (!anyConnected) {
-                clearPhaseTimer(currentRoomId);
-                rooms.delete(currentRoomId);
-                console.log(`[Room ${currentRoomId}] Удалена (все отключились)`);
+                const isGamePhase = room.phase === 'active_game' || room.phase === 'roles';
+                if (isGamePhase) {
+                    // Grace period 60s — дать время на редирект lobby→game
+                    if (!room.graceTimer) {
+                        console.log(`[Room ${currentRoomId}] All disconnected but game active. Grace 60s...`);
+                        const capturedRoomId = currentRoomId;
+                        room.graceTimer = setTimeout(() => {
+                            const r = rooms.get(capturedRoomId);
+                            if (!r) return;
+                            delete r.graceTimer;
+                            const still = Array.from(r.players.values()).some(p => p.isConnected);
+                            if (!still) {
+                                clearPhaseTimer(capturedRoomId);
+                                rooms.delete(capturedRoomId);
+                                console.log(`[Room ${capturedRoomId}] Удалена после grace period`);
+                            }
+                        }, 60000);
+                    }
+                } else {
+                    clearPhaseTimer(currentRoomId);
+                    rooms.delete(currentRoomId);
+                    console.log(`[Room ${currentRoomId}] Удалена (все отключились)`);
+                }
             }
         }
     }

@@ -565,10 +565,7 @@
                 <span id="mp-conn-status" style="font-weight:bold; color:#bbb;">🔴 Нет связи</span>
                 <label style="display:flex; align-items:center; gap:4px; color:#bbb; font-size:0.85em;">
                     QR место:
-                    <select id="mp-seat-select" class="meta-input meta-table" style="width:58px;">
-                        <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
-                        <option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option>
-                    </select>
+                    <select id="mp-seat-select" class="meta-input meta-table" style="width:58px;"></select>
                 </label>
                 <button class="new-game-btn" id="mp-copy-link-btn" style="margin-left:0;">🔗 Копировать ссылку</button>
                 
@@ -793,7 +790,8 @@
     const PHASE_LAST_WORD = 'PHASE_LAST_WORD';
     const PHASE_NIGHT = 'PHASE_NIGHT';
 
-    const PLAYERS_COUNT = 10;
+    // Dynamic player count: ?players=N in URL, default 10
+    const PLAYERS_COUNT = Math.min(10, Math.max(2, parseInt(new URLSearchParams(window.location.search).get('players')) || 10));
     function buildDefaultPlayers() {
         const result = [];
         for (let i = 1; i <= PLAYERS_COUNT; i++) {
@@ -1044,7 +1042,7 @@
         container.innerHTML = '';
         const allowed = getAllowedIdsForPhase();
         const lastWordTarget = currentGamePhase === PHASE_LAST_WORD ? lastWordQueue[lastWordIndex] : null;
-        for (let i = 1; i <= 10; i++) {
+        for (let i = 1; i <= PLAYERS_COUNT; i++) {
             const btn = document.createElement('button');
             btn.className = 'phase-btn';
             btn.innerText = i;
@@ -1069,11 +1067,14 @@
         players.forEach(p => {
             if (counts[p.role] !== undefined) counts[p.role] += 1;
         });
-        return players.length === PLAYERS_COUNT
-            && counts.mafia === 2
+        if (players.length !== PLAYERS_COUNT) return false;
+        // Flexible balance: for <10 players allow fewer civilians
+        const expectedCiv = PLAYERS_COUNT - 4; // mafia(2) + don(1) + sheriff(1)
+        if (PLAYERS_COUNT < 6) return true; // Too few for standard roles
+        return counts.mafia === 2
             && counts.don === 1
             && counts.sheriff === 1
-            && counts.civilian === 6;
+            && counts.civilian === expectedCiv;
     }
 
     function setActionControlsDisabled(disabled) {
@@ -2396,7 +2397,7 @@
         const headers = [
             'Игра', 'Турнир', 'Стол', 'Судья', 'Победитель', 'Причина', 'Дней', 'Лучший Ход'
         ];
-        for (let i = 1; i <= 10; i += 1) {
+        for (let i = 1; i <= PLAYERS_COUNT; i += 1) {
             headers.push(`Игрок ${i} Роль`);
             headers.push(`Игрок ${i} Бонус`);
         }
@@ -2413,7 +2414,7 @@
                 entry.days || 0,
                 entry.lhcResult || ''
             ];
-            for (let i = 1; i <= 10; i += 1) {
+            for (let i = 1; i <= PLAYERS_COUNT; i += 1) {
                 const p = entry.players.find(player => player.id === i);
                 row.push(p ? getRoleLabel(p.role) : '');
                 row.push(p ? p.bonus : '');
@@ -2680,6 +2681,16 @@
 
     // === WINDOW ONLOAD (В КОНЦЕ) ===
     window.onload = function() {
+        // Dynamically populate seat select based on PLAYERS_COUNT
+        const seatSelect = document.getElementById('mp-seat-select');
+        if (seatSelect) {
+            seatSelect.innerHTML = '';
+            for (let i = 1; i <= PLAYERS_COUNT; i++) {
+                const opt = document.createElement('option');
+                opt.value = i; opt.textContent = i;
+                seatSelect.appendChild(opt);
+            }
+        }
         const restored = loadState();
         renderTable(); 
         updatePhaseLabel();
