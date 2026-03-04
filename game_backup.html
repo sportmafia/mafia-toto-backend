@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mafia Toto – Live Trust</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0d0f14;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      letter-spacing: .05em;
+      margin-bottom: .4rem;
+      color: #f59e0b;
+    }
+
+    #connection-status {
+      font-size: .75rem;
+      margin-bottom: 1.6rem;
+      color: #94a3b8;
+    }
+    #connection-status.connected { color: #34d399; }
+    #connection-status.disconnected { color: #f87171; }
+
+    /* ── SEAT SELECTOR ── */
+    .seat-selector {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 1.8rem;
+    }
+    .seat-btn {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      border: 2px solid #334155;
+      background: #1e293b;
+      color: #cbd5e1;
+      font-size: .85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .18s;
+    }
+    .seat-btn:hover  { border-color: #f59e0b; color: #f59e0b; }
+    .seat-btn.active { background: #f59e0b; border-color: #f59e0b; color: #0d0f14; }
+
+    /* ── SLIDER CARD ── */
+    .card {
+      background: #1e293b;
+      border: 1px solid #2d3748;
+      border-radius: 14px;
+      padding: 1.8rem 2rem;
+      width: 100%;
+      max-width: 480px;
+      margin-bottom: 2rem;
+    }
+    .card-title {
+      font-size: .85rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: #94a3b8;
+      margin-bottom: 1rem;
+    }
+
+    /* slider */
+    #trust-slider {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      background: linear-gradient(to right, #f59e0b 0%, #f59e0b var(--val, 50%), #334155 var(--val, 50%), #334155 100%);
+      outline: none;
+      cursor: pointer;
+      margin-bottom: .6rem;
+    }
+    #trust-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: #f59e0b;
+      border: 3px solid #0d0f14;
+      cursor: grab;
+    }
+    .slider-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: .72rem;
+      color: #64748b;
+      margin-bottom: 1.2rem;
+    }
+    #slider-value-display {
+      text-align: center;
+      font-size: 2rem;
+      font-weight: 700;
+      color: #f59e0b;
+      margin-bottom: 1.4rem;
+    }
+
+    /* ── CROWD PROGRESS BAR ── */
+    .progress-section { margin-top: .6rem; }
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: .78rem;
+      color: #94a3b8;
+      margin-bottom: .4rem;
+    }
+    .progress-track {
+      height: 14px;
+      background: #334155;
+      border-radius: 7px;
+      overflow: hidden;
+      margin-bottom: .3rem;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #10b981, #34d399);
+      border-radius: 7px;
+      transition: width .4s ease;
+      width: 0%;
+    }
+    .progress-meta {
+      font-size: .72rem;
+      color: #64748b;
+      text-align: right;
+    }
+
+    /* ── PLAYERS TABLE ── */
+    table {
+      width: 100%;
+      max-width: 480px;
+      border-collapse: collapse;
+      font-size: .82rem;
+    }
+    thead th {
+      text-align: left;
+      padding: .5rem .75rem;
+      color: #64748b;
+      border-bottom: 1px solid #2d3748;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+    tbody tr { border-bottom: 1px solid #1e293b; }
+    tbody tr:hover { background: #1e293b; }
+    tbody td { padding: .55rem .75rem; }
+    .bar-cell { width: 140px; }
+    .mini-bar {
+      height: 8px;
+      background: #334155;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .mini-fill {
+      height: 100%;
+      background: #f59e0b;
+      border-radius: 4px;
+      transition: width .4s ease;
+    }
+    .badge-trust {
+      display: inline-block;
+      min-width: 36px;
+      text-align: center;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: .15rem .4rem;
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+<body>
+
+  <a href="index.html" style="position:fixed;top:1rem;left:1rem;color:#64748b;text-decoration:none;font-size:.85rem;font-weight:600;background:#1e293b;border:1px solid #334155;padding:.4rem .9rem;border-radius:8px;">← На главную</a>
+
+  <h1>🎴 Mafia Toto — Live Trust</h1>
+  <div id="connection-status" class="disconnected">● Disconnected</div>
+
+  <!-- Seat selector -->
+  <div class="seat-selector" id="seat-selector"></div>
+
+  <!-- Slider card -->
+  <div class="card">
+    <div class="card-title">Ваш уровень доверия к <span id="player-label">Игрок #1</span></div>
+
+    <div id="slider-value-display">50</div>
+
+    <input type="range" id="trust-slider" min="0" max="100" value="50" />
+    <div class="slider-labels"><span>🔴 Не доверяю</span><span>🟢 Доверяю</span></div>
+
+    <!-- Crowd average progress bar -->
+    <div class="progress-section">
+      <div class="progress-label">
+        <span>Среднее мнение толпы</span>
+        <span id="crowd-avg-text">–</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="crowd-bar"></div>
+      </div>
+      <div class="progress-meta" id="crowd-votes">0 голосов</div>
+    </div>
+  </div>
+
+  <!-- All players table -->
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Игрок</th>
+        <th>Доверие</th>
+        <th class="bar-cell">График</th>
+      </tr>
+    </thead>
+    <tbody id="players-tbody">
+      <!-- filled by JS -->
+    </tbody>
+  </table>
+
+  <!-- Socket.IO client (served by the server automatically) -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    // ─────────────────────────────────────────────
+    // State
+    // ─────────────────────────────────────────────
+    const MATCH_ID    = '00000000-0000-0000-0000-000000000002'; // MOCK_MATCH_ID
+    const TOTAL_SEATS = 10;
+
+    let selectedSeat = 1;
+    let sliderTimer  = null;          // debounce timer
+
+    // trust[seat_number] = { avg_trust, total_votes }
+    const trust = {};
+    for (let i = 1; i <= TOTAL_SEATS; i++) trust[i] = { avg_trust: 0, total_votes: 0 };
+
+    // ─────────────────────────────────────────────
+    // DOM refs
+    // ─────────────────────────────────────────────
+    const statusEl      = document.getElementById('connection-status');
+    const sliderEl      = document.getElementById('trust-slider');
+    const valueDisplay  = document.getElementById('slider-value-display');
+    const playerLabel   = document.getElementById('player-label');
+    const crowdBar      = document.getElementById('crowd-bar');
+    const crowdAvgText  = document.getElementById('crowd-avg-text');
+    const crowdVotes    = document.getElementById('crowd-votes');
+    const tbody         = document.getElementById('players-tbody');
+
+    // ─────────────────────────────────────────────
+    // Build seat buttons
+    // ─────────────────────────────────────────────
+    const seatSelector = document.getElementById('seat-selector');
+    for (let i = 1; i <= TOTAL_SEATS; i++) {
+      const btn = document.createElement('button');
+      btn.className = 'seat-btn' + (i === 1 ? ' active' : '');
+      btn.textContent = i;
+      btn.dataset.seat = i;
+      btn.addEventListener('click', () => selectSeat(i));
+      seatSelector.appendChild(btn);
+    }
+
+    function selectSeat(seat) {
+      selectedSeat = seat;
+      document.querySelectorAll('.seat-btn').forEach(b => {
+        b.classList.toggle('active', Number(b.dataset.seat) === seat);
+      });
+      playerLabel.textContent = `Игрок #${seat}`;
+      updateCrowdUI(seat);
+    }
+
+    // ─────────────────────────────────────────────
+    // Build players table rows
+    // ─────────────────────────────────────────────
+    function buildTable() {
+      tbody.innerHTML = '';
+      for (let i = 1; i <= TOTAL_SEATS; i++) {
+        const tr = document.createElement('tr');
+        tr.id = `row-${i}`;
+        tr.innerHTML = `
+          <td>${i}</td>
+          <td>Игрок ${i}</td>
+          <td><span class="badge-trust" id="trust-val-${i}">0</span></td>
+          <td class="bar-cell">
+            <div class="mini-bar">
+              <div class="mini-fill" id="mini-bar-${i}" style="width:0%"></div>
+            </div>
+          </td>`;
+        tbody.appendChild(tr);
+      }
+    }
+    buildTable();
+
+    // ─────────────────────────────────────────────
+    // Update crowd bar (selected seat)
+    // ─────────────────────────────────────────────
+    function updateCrowdUI(seat) {
+      const { avg_trust, total_votes } = trust[seat] || { avg_trust: 0, total_votes: 0 };
+      crowdBar.style.width    = avg_trust + '%';
+      crowdAvgText.textContent = avg_trust;
+      crowdVotes.textContent  = total_votes + ' голос(ов)';
+    }
+
+    // Update table row
+    function updateTableRow(seat, avg_trust) {
+      const valEl = document.getElementById(`trust-val-${seat}`);
+      const barEl = document.getElementById(`mini-bar-${seat}`);
+      if (valEl) valEl.textContent = avg_trust;
+      if (barEl) barEl.style.width = avg_trust + '%';
+    }
+
+    // ─────────────────────────────────────────────
+    // Socket.IO
+    // ─────────────────────────────────────────────
+    const socket = io();
+
+    socket.on('connect', () => {
+      statusEl.textContent = '● Connected';
+      statusEl.className   = 'connected';
+    });
+
+    socket.on('disconnect', () => {
+      statusEl.textContent = '● Disconnected';
+      statusEl.className   = 'disconnected';
+    });
+
+    // Получить обновление от сервера
+    socket.on('crowd_update', (data) => {
+      const { seat_number, avg_trust, total_votes } = data;
+      trust[seat_number] = { avg_trust, total_votes };
+
+      updateTableRow(seat_number, avg_trust);
+
+      // Если обновление для текущего сиденья — обновить главный бар
+      if (seat_number === selectedSeat) updateCrowdUI(seat_number);
+    });
+
+    socket.on('error_msg', (data) => {
+      console.warn('[server error]', data.message);
+    });
+
+    // ─────────────────────────────────────────────
+    // Slider interaction
+    // ─────────────────────────────────────────────
+    sliderEl.addEventListener('input', () => {
+      const val = Number(sliderEl.value);
+
+      // Обновить отображение значения
+      valueDisplay.textContent = val;
+
+      // Обновить CSS-переменную для градиента трека
+      sliderEl.style.setProperty('--val', val + '%');
+
+      // Debounce: отправлять не чаще 1 раза в 150 мс
+      clearTimeout(sliderTimer);
+      sliderTimer = setTimeout(() => {
+        socket.emit('slider_move', {
+          seat_number: selectedSeat,
+          value: val,
+        });
+      }, 150);
+    });
+
+    // Инициализировать CSS-переменную
+    sliderEl.style.setProperty('--val', sliderEl.value + '%');
+
+    // ─────────────────────────────────────────────
+    // Загрузить начальные данные через REST
+    // ─────────────────────────────────────────────
+    fetch(`/api/crowd/${MATCH_ID}`)
+      .then(r => r.json())
+      .then(rows => {
+        if (!Array.isArray(rows)) return;
+        rows.forEach(({ seat_number, avg_trust, total_votes }) => {
+          const seat = Number(seat_number);
+          trust[seat] = { avg_trust: Number(avg_trust), total_votes: Number(total_votes) };
+          updateTableRow(seat, Math.round(Number(avg_trust)));
+        });
+        updateCrowdUI(selectedSeat);
+      })
+      .catch(() => { /* БД ещё не прогрета — ок */ });
+  </script>
+</body>
+</html>

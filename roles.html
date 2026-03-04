@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Судейский Пульт v12 (Smart Pull)</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #2d2d2d;
+            --text-color: #e0e0e0;
+            --highlight: #ffd700; /* Желтый */
+            --accent-red: #d32f2f;
+            --accent-black: #000000;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* --- UI SECTIONS --- */
+        #main-menu, #game-interface, #protocol-section, #history-section, #manual-input-section {
+            display: none;
+            width: 100%;
+            max-width: 600px;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .active-section { display: flex !important; }
+
+        /* --- BUTTONS & HEADER --- */
+        .menu-btn {
+            background: var(--card-bg); color: var(--text-color); border: 2px solid #444;
+            padding: 20px; margin: 10px 0; border-radius: 12px; font-size: 1.2rem;
+            font-weight: bold; cursor: pointer; width: 90%; text-transform: uppercase;
+            transition: 0.2s;
+        }
+        .menu-btn:active { transform: scale(0.98); }
+        
+        .menu-btn.primary { background: var(--highlight); color: black; border: none; font-size: 1.4rem; }
+        
+        header {
+            width: 100%; padding: 15px; background: #1e1e1e; text-align: center;
+            border-radius: 0 0 15px 15px; margin-bottom: 20px;
+        }
+        .current-player { font-size: 1.4rem; font-weight: bold; color: var(--highlight); }
+
+        .game-board { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: 100%; }
+        .card-btn {
+            background: var(--card-bg); border: 2px solid #444; border-radius: 12px;
+            height: 75px; display: flex; align-items: center; justify-content: center;
+            font-size: 2.2rem; font-weight: bold; color: white; cursor: pointer;
+            position: relative;
+            flex-direction: column;
+        }
+        /* Убрали стиль .picked, так как карты теперь исчезают */
+        
+        .role-hint {
+            font-size: 0.9rem;
+            color: var(--highlight);
+            margin-top: 5px;
+            font-weight: normal;
+            text-transform: uppercase;
+        }
+
+        /* --- ADMIN CONTROLS --- */
+        .admin-controls {
+            display: flex;
+            width: 100%;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: space-between;
+        }
+        .admin-btn {
+            flex: 1;
+            padding: 12px 5px;
+            background: #1e1e1e;
+            border: 1px solid #444;
+            color: #888;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        .admin-btn:active { background: #333; }
+
+        /* --- MANUAL INPUT STYLES --- */
+        .input-group {
+            width: 100%;
+            margin-bottom: 15px;
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid #333;
+        }
+        .input-group label {
+            font-size: 1.1rem;
+            font-weight: bold;
+            width: 40%;
+        }
+        .input-group input {
+            width: 50%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 2px solid #444;
+            background: #2d2d2d;
+            color: white;
+            font-size: 1.2rem;
+            text-align: center;
+            outline: none;
+        }
+        .input-group input:focus { border-color: var(--highlight); }
+        .label-don { color: #888; text-shadow: 0 0 5px rgba(0,0,0,0.5); } 
+        .label-mafia { color: #d32f2f; }
+        .label-sheriff { color: var(--highlight); }
+
+        /* --- CONFIRMATION OVERLAY --- */
+        #confirmation-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95);
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 20000;
+        }
+        #confirmation-overlay.visible { display: flex; }
+        .confirm-big-number { font-size: 6rem; font-weight: 900; color: var(--highlight); margin-bottom: 20px; text-shadow: 0 0 20px rgba(255, 215, 0, 0.3); text-align: center; line-height: 1.1; }
+        .confirm-question { font-size: 1.5rem; margin-bottom: 40px; color: white; text-transform: uppercase; letter-spacing: 2px; text-align: center; padding: 0 20px; }
+        .confirm-actions { display: flex; gap: 20px; width: 100%; justify-content: center; }
+        .confirm-btn { width: 40%; padding: 20px; font-size: 1.5rem; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; }
+        .btn-yes { background: var(--highlight); color: black; }
+        .btn-no { background: #333; color: white; border: 2px solid #555; }
+
+        /* --- ROLE REVEAL OVERLAY --- */
+        #role-reveal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: black;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 9999; opacity: 0; pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        #role-reveal-overlay.visible { opacity: 1; pointer-events: all; }
+        
+        #role-reveal-overlay.bg-black { background-color: black !important; }
+        #role-reveal-overlay.bg-red { background-color: var(--accent-red) !important; }
+        #role-reveal-overlay.bg-yellow { background-color: var(--highlight) !important; }
+
+        .reveal-content { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 75%; }
+        .big-icon { font-size: 30vh; line-height: 1; margin-bottom: 20px; filter: drop-shadow(0 0 20px rgba(0,0,0,0.5)); }
+        .big-text { font-size: 14vw; font-weight: 900; text-transform: uppercase; letter-spacing: 5px; line-height: 1; text-align: center; word-break: break-word; }
+        .text-white { color: white; }
+        .text-gold { color: var(--highlight); }
+        .stroke-black { text-shadow: 0 0 15px black, 0 0 5px black; }
+        .player-top-label { position: absolute; top: 40px; font-size: 1.5rem; text-transform: uppercase; font-weight: bold; opacity: 0.8; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+
+        .timer-bar { width: 90%; height: 8px; background: rgba(0,0,0,0.3); position: absolute; bottom: 50px; border-radius: 4px; overflow: hidden; }
+        .timer-progress { height: 100%; background: white; width: 100%; }
+        
+        #demo-msg { position: absolute; bottom: 30px; width: 100%; text-align: center; z-index: 10001; }
+        #demo-msg p { color: white; font-size: 0.9rem; margin-bottom: 15px; opacity: 0.9; text-shadow: 0 2px 5px rgba(0,0,0,1); }
+        .btn-close-demo { padding: 14px 40px; background: #ffffff; color: #000000; border: none; border-radius: 50px; font-size: 1rem; font-weight: 900; cursor: pointer; box-shadow: 0 5px 20px rgba(0,0,0,0.6); text-transform: uppercase; letter-spacing: 1px; transition: transform 0.1s; }
+        .btn-close-demo:active { transform: scale(0.95); }
+
+        /* --- PROTOCOL & HISTORY --- */
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; background: #1e1e1e; border-radius: 8px; overflow: hidden; }
+        th, td { padding: 12px; text-align: center; border-bottom: 1px solid #333; }
+        th { background: #252525; color: #888; font-size: 0.9rem; }
+        .row-red { color: #ff6b6b; font-weight: bold; }
+        .row-sheriff { color: var(--highlight); font-weight: bold; text-shadow: 0 0 5px rgba(255, 215, 0, 0.2); }
+        
+        .btn-restart { padding: 15px; background: var(--highlight); width: 100%; border: none; border-radius: 10px; font-weight: bold; font-size: 1.1rem; cursor: pointer; margin-top: 10px; color: black; }
+        .btn-clear { background: #d32f2f; color: white; margin-top: 30px; font-size: 0.9rem; padding: 10px; }
+        .btn-cancel { background: transparent; border: 1px solid #666; color: #888; margin-top: 10px; }
+
+        /* Карточка истории */
+        .history-card {
+            background: #252525;
+            width: 100%;
+            margin-bottom: 25px;
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid #333;
+        }
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div style="width: 100%; max-width: 600px; padding: 12px 20px 0; box-sizing: border-box;">
+        <a href="index.html" style="color: #888; text-decoration: none; font-weight: bold;">← На главную</a>
+    </div>
+
+    <div id="main-menu" class="active-section">
+        <h1 style="color: #666; letter-spacing: 2px; margin-bottom: 30px; font-size: 1.5rem;">MAFIA JUDGE</h1>
+        <button class="menu-btn primary" onclick="startGame()">Раздача ролей</button>
+        <button class="menu-btn" onclick="showManualInput()">Роли розданы</button>
+        <button class="menu-btn" onclick="startDemo()">Демонстрация</button>
+        <button class="menu-btn" onclick="showHistoryMenu()">История раздач</button>
+    </div>
+
+    <div id="manual-input-section">
+        <h2 style="margin-bottom: 20px;">Введите номера игроков</h2>
+        <div class="input-group">
+            <label class="label-don">🎩 ДОН</label>
+            <input type="number" id="manual-don" pattern="[0-9]*" inputmode="numeric" placeholder="№">
+        </div>
+        <div class="input-group">
+            <label class="label-mafia">🔫 МАФИЯ 1</label>
+            <input type="number" id="manual-mafia1" pattern="[0-9]*" inputmode="numeric" placeholder="№">
+        </div>
+        <div class="input-group">
+            <label class="label-mafia">🔫 МАФИЯ 2</label>
+            <input type="number" id="manual-mafia2" pattern="[0-9]*" inputmode="numeric" placeholder="№">
+        </div>
+        <div class="input-group">
+            <label class="label-sheriff">✡ ШЕРИФ</label>
+            <input type="number" id="manual-sheriff" pattern="[0-9]*" inputmode="numeric" placeholder="№">
+        </div>
+        <p style="color: #666; font-size: 0.8rem; margin: 10px 0;">* Остальные игроки будут записаны как мирные</p>
+        <button class="menu-btn primary" onclick="submitManualProtocol()">Сохранить</button>
+        <button class="menu-btn btn-cancel" onclick="switchScreen('main-menu')">Отмена</button>
+    </div>
+
+    <div id="game-interface">
+        <header>
+            <div class="current-player" id="status-text">ИГРОК №1</div>
+        </header>
+        <div class="game-board" id="board"></div>
+        
+        <div class="admin-controls">
+            <button class="admin-btn" id="btn-reveal-toggle" onclick="askConfirm('reveal')">Показать роли</button>
+            <button class="admin-btn" onclick="askConfirm('reshuffle')">Решафл</button>
+            <button class="admin-btn" onclick="askConfirm('reset')">Сброс</button>
+        </div>
+    </div>
+
+    <div id="confirmation-overlay">
+        <div class="confirm-big-number" id="confirm-main-text"></div>
+        <div class="confirm-question" id="confirm-sub-text">ПОДТВЕРДИТЬ?</div>
+        <div class="confirm-actions">
+            <button class="confirm-btn btn-yes" onclick="handleConfirmYes()">ДА</button>
+            <button class="confirm-btn btn-no" onclick="handleConfirmNo()">НЕТ</button>
+        </div>
+    </div>
+
+    <div id="protocol-section">
+        <h2 style="text-align: center;">Результаты</h2>
+        <table id="protocol-table">
+            <thead><tr><th>Игрок</th><th>Карта</th><th>Роль</th></tr></thead>
+            <tbody></tbody>
+        </table>
+        <button class="btn-restart" onclick="switchScreen('main-menu')">В меню</button>
+    </div>
+
+    <div id="history-section">
+        <h2 style="text-align: center; margin-bottom: 20px;">История игр</h2>
+        <div id="history-container" style="width: 100%;">
+            </div>
+        <button class="btn-restart" onclick="switchScreen('main-menu')">В меню</button>
+        <button class="btn-restart btn-clear" onclick="clearHistory()">Очистить историю</button>
+    </div>
+
+    <div id="role-reveal-overlay" onclick="handleOverlayClick()">
+        <div class="player-top-label" id="reveal-player-label">Игрок 1</div>
+        <div class="reveal-content">
+            <div id="reveal-visual"></div>
+            <div id="reveal-subtext" style="font-size: 2rem; margin-top: 10px; font-weight: bold; text-transform: uppercase;"></div>
+        </div>
+        <div class="timer-bar" id="game-timer-block"><div class="timer-progress" id="timer-line"></div></div>
+        <div id="demo-msg" style="display:none;">
+            <p>Коснитесь экрана для переключения</p>
+            <button class="btn-close-demo" onclick="stopDemo(event)">ЗАКРЫТЬ</button>
+        </div>
+    </div>
+
+    <script>
+        const ROLES_POOL = [
+            { id: 'don', name: 'ДОН', type: 'black', icon: '🎩' },
+            { id: 'mafia', name: 'МАФИЯ', type: 'black', icon: '' },
+            { id: 'mafia', name: 'МАФИЯ', type: 'black', icon: '' },
+            { id: 'sheriff', name: 'ШЕРИФ', type: 'red', icon: '✡' },
+            { id: 'citizen', name: 'МИРНЫЙ', type: 'red', icon: '' },
+            { id: 'citizen', name: 'МИРНЫЙ', type: 'red', icon: '' },
+            { id: 'citizen', name: 'МИРНЫЙ', type: 'red', icon: '' },
+            { id: 'citizen', name: 'МИРНЫЙ', type: 'red', icon: '' },
+            { id: 'citizen', name: 'МИРНЫЙ', type: 'red', icon: '' },
+            { id: 'citizen', name: 'МИРНЫЙ', type: 'red', icon: '' }
+        ];
+
+        const ROLE_DEFS = {
+            don: { id: 'don', name: 'ДОН', type: 'black', icon: '🎩' },
+            mafia: { id: 'mafia', name: 'МАФИЯ', type: 'black', icon: '' },
+            sheriff: { id: 'sheriff', name: 'ШЕРИФ', type: 'red', icon: '✡' },
+            citizen: { id: 'citizen', name: 'МИРНЫЙ', type: 'red', icon: '' }
+        };
+
+        const DEMO_ORDER = ['citizen', 'mafia', 'sheriff', 'don'];
+
+        let state = {
+            mode: 'menu',
+            deck: [], 
+            protocol: [],
+            currentStep: 0,
+            demoIndex: 0,
+            locked: false,
+            rolesVisible: false,
+            pendingAction: null, 
+            pendingPayload: null 
+        };
+
+        // --- Core Functions ---
+        function switchScreen(id) {
+            document.querySelectorAll('#main-menu, #game-interface, #protocol-section, #history-section, #manual-input-section').forEach(e => e.classList.remove('active-section'));
+            document.getElementById(id).classList.add('active-section');
+        }
+
+        function shuffle(arr) {
+            return arr.sort(() => Math.random() - 0.5);
+        }
+
+        function startGame() {
+            state.mode = 'game';
+            const shuffledRoles = shuffle([...ROLES_POOL]);
+            state.deck = shuffledRoles.map(role => ({ role: role, picked: false }));
+            
+            state.currentStep = 1;
+            state.protocol = [];
+            state.rolesVisible = false;
+            updateRevealButton(); 
+            
+            renderBoard();
+            document.getElementById('status-text').innerText = "ВЫБИРАЕТ ИГРОК №1";
+            switchScreen('game-interface');
+        }
+
+        function updateRevealButton() {
+            const btn = document.getElementById('btn-reveal-toggle');
+            if(state.rolesVisible) {
+                btn.innerText = "СПРЯТАТЬ РОЛИ";
+            } else {
+                btn.innerText = "ПОКАЗАТЬ РОЛИ";
+            }
+        }
+
+        // --- Manual Input Logic ---
+        function showManualInput() {
+            document.getElementById('manual-don').value = '';
+            document.getElementById('manual-mafia1').value = '';
+            document.getElementById('manual-mafia2').value = '';
+            document.getElementById('manual-sheriff').value = '';
+            switchScreen('manual-input-section');
+        }
+
+        function submitManualProtocol() {
+            const don = parseInt(document.getElementById('manual-don').value);
+            const maf1 = parseInt(document.getElementById('manual-mafia1').value);
+            const maf2 = parseInt(document.getElementById('manual-mafia2').value);
+            const sheriff = parseInt(document.getElementById('manual-sheriff').value);
+
+            const inputs = [don, maf1, maf2, sheriff];
+            if (inputs.some(isNaN)) { alert('Пожалуйста, заполните все поля!'); return; }
+            if (inputs.some(n => n < 1 || n > 10)) { alert('Номера игроков должны быть от 1 до 10'); return; }
+            if (new Set(inputs).size !== 4) { alert('Одному игроку нельзя присвоить две роли!'); return; }
+
+            state.protocol = [];
+            for (let i = 1; i <= 10; i++) {
+                let role = ROLE_DEFS.citizen;
+                if (i === don) role = ROLE_DEFS.don;
+                else if (i === maf1 || i === maf2) role = ROLE_DEFS.mafia;
+                else if (i === sheriff) role = ROLE_DEFS.sheriff;
+                state.protocol.push({ player: i, role: role, pickedNumber: '-' }); // В ручном нет вытянутой карты
+            }
+            finishGame();
+        }
+
+        // --- Game Logic (Modified for Smart Pull) ---
+        function renderBoard() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            
+            let visualIndex = 1; // Счетчик для отображаемых карт
+
+            state.deck.forEach((cardData, actualIndex) => {
+                // Если карта выбрана, пропускаем её (не рендерим вообще)
+                if (cardData.picked) return;
+
+                const btn = document.createElement('div');
+                btn.className = 'card-btn';
+                
+                // Отображаем номер по порядку (1, 2, 3...)
+                let btnContent = `<span>${visualIndex}</span>`;
+                if (state.rolesVisible) {
+                    btnContent += `<span class="role-hint">${cardData.role.name}</span>`;
+                }
+                btn.innerHTML = btnContent;
+
+                // Запоминаем текущий визуальный номер для замыкания
+                const currentVisualNumber = visualIndex;
+
+                btn.onclick = () => {
+                    if (!state.locked) {
+                        // Передаем и реальный индекс (для логики) и визуальный (для подтверждения/истории)
+                        askConfirm('pick', { actualIndex: actualIndex, visualNumber: currentVisualNumber });
+                    }
+                };
+                board.appendChild(btn);
+                
+                visualIndex++; // Увеличиваем счетчик только если отрисовали карту
+            });
+        }
+
+        // --- CONFIRMATION SYSTEM ---
+        function askConfirm(action, payload = null) {
+            state.pendingAction = action;
+            state.pendingPayload = payload;
+            
+            const overlay = document.getElementById('confirmation-overlay');
+            const mainText = document.getElementById('confirm-main-text');
+            const subText = document.getElementById('confirm-sub-text');
+
+            if (action === 'pick') {
+                // Показываем визуальный номер, который увидел игрок
+                mainText.innerText = payload.visualNumber;
+                mainText.style.fontSize = '8rem';
+                subText.innerText = "ПОДТВЕРДИТЬ?";
+            } else if (action === 'reveal') {
+                if (state.rolesVisible) {
+                    mainText.innerText = "🚫"; 
+                    mainText.style.fontSize = '6rem';
+                    subText.innerText = "СПРЯТАТЬ РОЛИ?";
+                } else {
+                    mainText.innerText = "👁";
+                    mainText.style.fontSize = '6rem';
+                    subText.innerText = "ПОКАЗАТЬ РОЛИ?";
+                }
+            } else if (action === 'reshuffle') {
+                mainText.innerText = "↺";
+                mainText.style.fontSize = '6rem';
+                subText.innerText = "НОВАЯ РАЗДАЧА?";
+            } else if (action === 'reset') {
+                mainText.innerText = "⚠";
+                mainText.style.fontSize = '6rem';
+                subText.innerText = "СБРОСИТЬ НОМЕРА?";
+            }
+            
+            overlay.classList.add('visible');
+        }
+
+        function handleConfirmYes() {
+            document.getElementById('confirmation-overlay').classList.remove('visible');
+            const action = state.pendingAction;
+            const payload = state.pendingPayload;
+            state.pendingAction = null;
+            state.pendingPayload = null;
+
+            if (action === 'pick') executeCardPick(payload.actualIndex, payload.visualNumber);
+            else if (action === 'reveal') toggleRoles();
+            else if (action === 'reshuffle') startGame();
+            else if (action === 'reset') resetGameNumbers();
+        }
+
+        function handleConfirmNo() {
+            document.getElementById('confirmation-overlay').classList.remove('visible');
+            state.pendingAction = null;
+            state.pendingPayload = null;
+        }
+
+        // --- Action Implementations ---
+        function toggleRoles() {
+            state.rolesVisible = !state.rolesVisible;
+            updateRevealButton();
+            renderBoard();
+        }
+
+        function resetGameNumbers() {
+            state.currentStep = 1;
+            state.protocol = [];
+            state.rolesVisible = false;
+            updateRevealButton();
+            state.deck.forEach(card => card.picked = false);
+            
+            document.getElementById('status-text').innerText = "ВЫБИРАЕТ ИГРОК №1";
+            renderBoard();
+        }
+
+        function executeCardPick(actualIndex, visualNumber) {
+            state.locked = true;
+            
+            state.deck[actualIndex].picked = true;
+            const role = state.deck[actualIndex].role;
+
+            // Записываем и роль, и номер карты, который тянул игрок
+            state.protocol.push({ player: state.currentStep, role: role, pickedNumber: visualNumber });
+            
+            if(state.rolesVisible) {
+                state.rolesVisible = false; 
+                updateRevealButton();
+            }
+            
+            renderBoard(); // Перерисовка (выбранная карта исчезнет)
+
+            showOverlay(role, state.currentStep, false);
+
+            setTimeout(() => {
+                closeOverlay();
+                state.currentStep++;
+                state.locked = false;
+                
+                const remaining = state.deck.filter(c => !c.picked).length;
+                if (remaining === 0) {
+                    finishGame();
+                } else {
+                    document.getElementById('status-text').innerText = `ВЫБИРАЕТ ИГРОК №${state.currentStep}`;
+                }
+            }, 4000);
+        }
+
+        function finishGame() {
+            state.protocol.sort((a,b) => a.player - b.player);
+            saveToHistory(state.protocol);
+            showProtocolTable(state.protocol, 'protocol-table');
+            switchScreen('protocol-section');
+        }
+
+        // --- Saving & History Logic ---
+        function saveToHistory(gameProtocol) {
+            const history = JSON.parse(localStorage.getItem('mafia_history') || '[]');
+            const newRecord = {
+                id: Date.now(),
+                date: new Date().toLocaleString("ru-RU", { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }),
+                protocol: gameProtocol
+            };
+            history.unshift(newRecord);
+            localStorage.setItem('mafia_history', JSON.stringify(history));
+        }
+
+        function showHistoryMenu() {
+            const container = document.getElementById('history-container');
+            container.innerHTML = '';
+            const history = JSON.parse(localStorage.getItem('mafia_history') || '[]');
+
+            if (history.length === 0) {
+                container.innerHTML = '<p style="color:#666; text-align:center;">Игр пока не было</p>';
+            } else {
+                history.forEach(game => {
+                    const card = document.createElement('div');
+                    card.className = 'history-card';
+                    const header = document.createElement('div');
+                    header.className = 'history-header';
+                    header.innerHTML = `<span>Игра #${game.id.toString().slice(-4)}</span><span>${game.date}</span>`;
+                    
+                    const table = document.createElement('table');
+                    const thead = document.createElement('thead');
+                    // Добавлен столбец "Карта"
+                    thead.innerHTML = '<tr><th>Игрок</th><th>Карта</th><th>Роль</th></tr>';
+                    const tbody = document.createElement('tbody');
+                    game.protocol.forEach(p => {
+                        const tr = document.createElement('tr');
+                        if (p.role.id === 'sheriff') tr.className = 'row-sheriff';
+                        else if (p.role.type === 'red') tr.className = 'row-red';
+                        // Отображаем номер вытянутой карты
+                        tr.innerHTML = `<td>${p.player}</td><td>[${p.pickedNumber}]</td><td>${p.role.name}</td>`;
+                        tbody.appendChild(tr);
+                    });
+                    
+                    table.appendChild(thead);
+                    table.appendChild(tbody);
+                    card.appendChild(header);
+                    card.appendChild(table);
+                    container.appendChild(card);
+                });
+            }
+            switchScreen('history-section');
+        }
+
+        function clearHistory() {
+            if(confirm('Вы уверены, что хотите удалить всю историю?')) {
+                localStorage.removeItem('mafia_history');
+                showHistoryMenu();
+            }
+        }
+
+        // --- Visual Logic ---
+        function showProtocolTable(data, tableId) {
+            const tbody = document.querySelector(`#${tableId} tbody`);
+            tbody.innerHTML = '';
+            data.forEach(p => {
+                const tr = document.createElement('tr');
+                if (p.role.id === 'sheriff') tr.className = 'row-sheriff';
+                else if (p.role.type === 'red') tr.className = 'row-red';
+                tr.innerHTML = `<td>${p.player}</td><td>[${p.pickedNumber}]</td><td>${p.role.name}</td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function showOverlay(role, playerNum, isDemo) {
+            const overlay = document.getElementById('role-reveal-overlay');
+            const visualBox = document.getElementById('reveal-visual');
+            const subtextBox = document.getElementById('reveal-subtext');
+            const label = document.getElementById('reveal-player-label');
+            
+            overlay.className = '';
+            visualBox.innerHTML = '';
+            subtextBox.innerText = '';
+            label.innerText = isDemo ? "ДЕМОНСТРАЦИЯ" : `ИГРОК №${playerNum}`;
+            label.style.color = 'white'; 
+
+            if (role.id === 'citizen') {
+                overlay.classList.add('bg-red');
+                visualBox.innerHTML = `<div class="big-text text-white">МИРНЫЙ</div>`;
+                label.style.color = 'rgba(255,255,255,0.9)';
+            } 
+            else if (role.id === 'mafia') {
+                overlay.classList.add('bg-black');
+                visualBox.innerHTML = `<div class="big-text text-white" style="color:#d32f2f">МАФИЯ</div>`;
+                label.style.color = '#888';
+            }
+            else if (role.id === 'sheriff') {
+                overlay.classList.add('bg-yellow');
+                visualBox.innerHTML = `<div class="big-icon stroke-black text-gold">✡</div>`;
+                subtextBox.innerText = "ШЕРИФ";
+                subtextBox.style.color = "black";
+                label.style.color = "black";
+            }
+            else if (role.id === 'don') {
+                overlay.classList.add('bg-black');
+                visualBox.innerHTML = `<div class="big-icon text-gold">🎩</div>`;
+                subtextBox.innerText = "ДОН МАФИИ";
+                subtextBox.style.color = "var(--highlight)";
+                label.style.color = "#888";
+            }
+
+            const timerBlock = document.getElementById('game-timer-block');
+            const demoMsg = document.getElementById('demo-msg');
+            const timerLine = document.getElementById('timer-line');
+
+            if (isDemo) {
+                timerBlock.style.display = 'none';
+                demoMsg.style.display = 'block';
+            } else {
+                timerBlock.style.display = 'block';
+                demoMsg.style.display = 'none';
+                timerLine.style.transition = 'none';
+                timerLine.style.width = '100%';
+                setTimeout(() => {
+                    timerLine.style.transition = 'width 4s linear';
+                    timerLine.style.width = '0%';
+                }, 50);
+            }
+            overlay.classList.add('visible');
+        }
+
+        function closeOverlay() {
+            document.getElementById('role-reveal-overlay').classList.remove('visible');
+        }
+
+        function startDemo() {
+            state.mode = 'demo';
+            state.demoIndex = 0;
+            showDemoRole();
+        }
+
+        function showDemoRole() {
+            const roleId = DEMO_ORDER[state.demoIndex];
+            const roleData = ROLES_POOL.find(r => r.id === roleId);
+            showOverlay(roleData, 0, true);
+        }
+
+        function handleOverlayClick() {
+            if (state.mode === 'demo') {
+                state.demoIndex = (state.demoIndex + 1) % DEMO_ORDER.length;
+                showDemoRole();
+            }
+        }
+
+        function stopDemo(e) {
+            e.stopPropagation();
+            closeOverlay();
+            state.mode = 'menu';
+        }
+    </script>
+</body>
+</html>

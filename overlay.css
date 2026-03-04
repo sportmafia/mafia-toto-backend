@@ -1,0 +1,311 @@
+/* overlay.css - ПОЛНАЯ ВЕРСИЯ (Идеальные расстояния + 8 и 3 раздвинуты) */
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden; 
+    font-family: 'Montserrat', sans-serif;
+    color: #ffffff;
+    background: transparent; 
+}
+
+/* =========================================================
+   1. ГЛАВНАЯ СЕТКА - СБОРКА СТРОГО ПО ЦЕНТРУ
+========================================================= */
+.overlay-grid {
+    display: grid;
+    
+    /* Размер слотов (по 130px) */
+    grid-template-columns: repeat(4, 130px);
+    grid-template-rows: repeat(3, 130px);
+    
+    /* Отступы как на скриншоте: 0px по вертикали, 40px по горизонтали */
+    gap: 0px 40px; 
+    
+    /* Жесткая центровка ровно посередине 1920x1080 */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    
+    /* --- ВОТ ЭТА ОДНА СТРОЧКА ИЗМЕНИЛАСЬ --- */
+    /* Сначала центрируем (-50%), затем уменьшаем в 1.5 раза (scale(0.667)) */
+    transform: translate(-50%, -50%) scale(0.667);
+    /* -------------------------------------- */
+    
+    pointer-events: none; 
+    z-index: 10;
+}
+
+/* =========================================================
+   2. РАССАДКА ИГРОКОВ (ТОЛЬКО СДВИГ ВЛЕВО/ВПРАВО)
+========================================================= */
+
+/* ВЕРХНИЙ РЯД - Идеально равное расстояние между 9-10, 10-1, 1-2 */
+.player-slot:nth-of-type(9)  { grid-column: 1; grid-row: 1; left: 30px; top: 40px; }
+.player-slot:nth-of-type(10) { grid-column: 2; grid-row: 1; left: 10px; top: 40px; }
+.player-slot:nth-of-type(1)  { grid-column: 3; grid-row: 1; left: -10px; top: 40px; }
+.player-slot:nth-of-type(2)  { grid-column: 4; grid-row: 1; left: -30px; top: 40px; }
+
+/* СРЕДНИЙ РЯД - Сдвинули ТОЛЬКО 8 влево, а 3 вправо, чтобы убрать налезание */
+.player-slot:nth-of-type(8)  { grid-column: 1; grid-row: 2; left: -100px; top: 0; }
+.player-slot:nth-of-type(3)  { grid-column: 4; grid-row: 2; left: 100px; top: 0; }
+
+/* НИЖНИЙ РЯД - Идеально равное расстояние между 7-6, 6-5, 5-4 */
+.player-slot:nth-of-type(7)  { grid-column: 1; grid-row: 3; left: 30px; top: -40px; }
+.player-slot:nth-of-type(6)  { grid-column: 2; grid-row: 3; left: 10px; top: -40px; }
+.player-slot:nth-of-type(5)  { grid-column: 3; grid-row: 3; left: -10px; top: -40px; }
+.player-slot:nth-of-type(4)  { grid-column: 4; grid-row: 3; left: -30px; top: -40px; }
+
+/* =========================================================
+   3. ДИЗАЙН СЛОТА (ДИНАМИЧЕСКИЙ ЦВЕТ) И ВНУТРЕННИЕ ЭЛЕМЕНТЫ
+========================================================= */
+.player-slot {
+    position: relative;
+    background: rgb(255, 255, 255); /* ПО УМОЛЧАНИЮ БЕЛЫЙ ЦВЕТ (0 очков) */
+    border: 3px solid rgba(0, 0, 0, 0.3);
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
+    border-radius: 50%; 
+    width: 100%;
+    height: 100%;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    transition: background-color 0.4s ease, transform 0.3s ease;
+}
+
+/* Фокус и Spotlight */
+.player-slot.spotlight-dim { opacity: 0.3; filter: grayscale(100%); }
+.player-slot.spotlight-target {
+    opacity: 1; filter: none;
+    border-color: #ffd700;
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+    transform: scale(1.1);
+    z-index: 50;
+}
+
+/* Лейбл: Контейнер для текста */
+.slot-label {
+    position: relative;
+    z-index: 5;
+    text-align: center;
+    line-height: 1.1; 
+}
+
+/* НОМЕР ИГРОКА (СИНИЙ ЦВЕТ ПОЛЗУНКА) */
+.player-number-text {
+    color: #007bff; 
+    font-size: 28px;
+    font-weight: 900;
+    text-shadow: 
+        -1px -1px 0 #fff,  
+         1px -1px 0 #fff,
+        -1px  1px 0 #fff,
+         1px  1px 0 #fff,
+         0px  2px 5px rgba(0,0,0,0.8);
+}
+
+/* ОЧКИ ИГРОКА (ЖЕЛТЫЙ ЦВЕТ) */
+.player-score-text {
+    color: #ffd700; 
+    font-size: 22px;
+    font-weight: 900;
+    display: block;
+    margin-top: 2px;
+    text-shadow: 
+        -1px -1px 0 #000,  
+         1px -1px 0 #000,
+        -1px  1px 0 #000,
+         1px  1px 0 #000,
+         0px  2px 5px rgba(0,0,0,1);
+}
+
+/* Контейнер фолов */
+.foul-container {
+    position: absolute;
+    top: -5px;
+    left: -5px;
+    display: flex;
+    gap: 3px;
+    z-index: 10;
+}
+
+.foul-card { width: 12px; height: 16px; border-radius: 2px; box-shadow: 0 0 3px #000; }
+.yellow-card { background: #ffcc00; }
+.red-card { background: #ff3333; }
+
+/* Иконка роли */
+.role-badge {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: none; 
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 14px;
+    color: #fff;
+    z-index: 15;
+    box-shadow: 0 0 5px #000;
+}
+.role-don { background: #800000; border: 2px solid #ff4d4d; }
+.role-mafia { background: #000000; border: 2px solid #555; }
+.role-sheriff { background: #0000cc; border: 2px solid #00e5ff; }
+.role-citizen { background: #009900; border: 2px solid #00ff00; }
+
+/* Ползунок */
+.color-slider {
+    position: absolute;
+    bottom: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    margin: 0;
+    z-index: 10;
+    cursor: pointer;
+}
+.color-slider.blind { filter: grayscale(100%); opacity: 0.5; }
+
+/* Детектор лжи */
+.lie-detector-container {
+    position: absolute;
+    bottom: -35px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    height: 6px;
+    background: #333;
+    border-radius: 3px;
+    display: none; 
+    overflow: hidden;
+    z-index: 10;
+}
+.lie-detector-bar {
+    height: 100%; width: 50%;
+    background: #ffff00;
+    transition: width 0.3s, background 0.3s;
+}
+
+/* Кнопки MVP */
+.mvp-group {
+    position: absolute;
+    bottom: -35px; 
+    left: 50%;
+    transform: translateX(-50%);
+    display: none; 
+    gap: 8px;
+    z-index: 20;
+}
+
+.mvp-btn {
+    background: rgba(0,0,0,0.8);
+    border: 1px solid #555;
+    border-radius: 50%;
+    width: 30px; height: 30px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+    transition: 0.2s;
+}
+.mvp-btn:hover { transform: scale(1.2); }
+.mvp-red { border-color: #ff4d4d; }
+.mvp-black { border-color: #555; }
+.mvp-wtf { border-color: #ffd700; }
+.mvp-btn.voted { box-shadow: 0 0 15px currentColor; border-width: 2px; }
+
+/* Тултип новичка */
+.tutorial-tooltip {
+    position: absolute;
+    top: -45px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 229, 255, 0.9);
+    color: #000;
+    padding: 5px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    white-space: nowrap;
+    display: none;
+    z-index: 30;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+.tutorial-tooltip::after {
+    content: ''; position: absolute;
+    top: 100%; left: 50%; margin-left: -5px;
+    border-width: 5px; border-style: solid;
+    border-color: rgba(0, 229, 255, 0.9) transparent transparent transparent;
+}
+
+/* Падающие эмодзи */
+.falling-emoji {
+    position: absolute;
+    top: -20px;
+    font-size: 24px;
+    animation: fallDown 2s linear forwards;
+    pointer-events: none;
+    z-index: 40;
+}
+@keyframes fallDown {
+    0% { transform: translateY(0) scale(1); opacity: 1; }
+    100% { transform: translateY(100px) scale(0.5); opacity: 0; }
+}
+
+/* Глобальные слои */
+#vector-canvas {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 2;
+}
+
+#voice-avatar-container, #highlight-msg-container, #sheriff-duel-container {
+    position: absolute; z-index: 100; left: 50%; transform: translateX(-50%);
+    display: none;
+}
+
+#voice-avatar-container { top: 10px; }
+.voice-box {
+    background: linear-gradient(45deg, #ffd700, #ff8c00);
+    color: #000; padding: 10px 20px; border-radius: 30px;
+    font-weight: 900; font-size: 16px; box-shadow: 0 5px 20px rgba(255, 215, 0, 0.6);
+    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+#highlight-msg-container { bottom: 20px; }
+.msg-box {
+    background: rgba(0, 0, 0, 0.85); border: 2px solid #00e5ff; border-radius: 8px;
+    padding: 10px 20px; color: #fff; font-size: 14px; max-width: 80%;
+    box-shadow: 0 0 20px rgba(0, 229, 255, 0.4); text-align: center;
+}
+.msg-author { color: #00e5ff; font-weight: bold; margin-right: 5px; }
+
+#sheriff-duel-container { top: 50%; width: 60%; }
+.duel-bar {
+    width: 100%; height: 30px; display: flex; border-radius: 15px;
+    overflow: hidden; border: 2px solid #fff; box-shadow: 0 0 30px rgba(255,255,255,0.5);
+}
+.duel-side {
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; color: #fff; transition: width 0.5s ease;
+}
+.duel-side.p1 { background: #ff4d4d; }
+.duel-side.p2 { background: #00e5ff; }
+
+.gesture-icon {
+    position: absolute; font-size: 40px; text-align: center; pointer-events: none;
+    animation: floatUp 3s ease-out forwards; z-index: 90; text-shadow: 0 2px 5px #000;
+}
+@keyframes floatUp {
+    0% { transform: translateY(0) scale(0.5); opacity: 0; }
+    20% { transform: translateY(-20px) scale(1.2); opacity: 1; }
+    100% { transform: translateY(-100px) scale(1); opacity: 0; }
+}
+@keyframes popIn { 0% { transform: scale(0); } 100% { transform: scale(1); } }

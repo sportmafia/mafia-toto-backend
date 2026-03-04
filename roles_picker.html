@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>SportMafia — Выбор Ролей (Без Ведущего)</title>
+  <style>
+    body { font-family: sans-serif; background: #222; color: #eee; padding: 20px; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #d32f2f; color: white; border: none; border-radius: 4px; margin: 5px; }
+    .box { background: #333; padding: 15px; margin-top: 15px; border-radius: 8px; }
+    .role-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+    .role-item { padding: 10px; background: #444; border-radius: 4px; cursor: pointer; text-align: center; min-width: 100px; }
+    .role-item:hover { background: #555; }
+    .role-item.selected { background: #d32f2f; }
+    .selected-role { margin-top: 20px; font-weight: bold; color: #d32f2f; }
+  </style>
+</head>
+<body>
+  <div><a href="index.html">← На главную</a></div>
+  <h1>🎭 Выбор Ролей (Без Ведущего)</h1>
+  <div id="status">Загрузка...</div>
+
+  <div id="join-section" class="box">
+    <h3>Присоединиться к комнате</h3>
+    <input type="text" id="room-id-input" placeholder="Введите ID комнаты">
+    <input type="text" id="player-token-input" placeholder="Введите токен игрока">
+    <button id="join-btn">Присоединиться</button>
+  </div>
+
+  <div id="roles-section" class="box" style="display:none;">
+    <h3>Выберите свою роль:</h3>
+    <div id="available-roles" class="role-list">
+      <!-- Роли будут добавлены здесь -->
+    </div>
+    <div id="selected-role" class="selected-role" style="display:none;"></div>
+    <button id="confirm-role-btn" style="display:none;">Подтвердить Роль</button>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="sync.js"></script>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const joinSection = document.getElementById('join-section');
+    const rolesSection = document.getElementById('roles-section');
+    const roomIdInput = document.getElementById('room-id-input');
+    const playerTokenInput = document.getElementById('player-token-input');
+    const joinBtn = document.getElementById('join-btn');
+    const availableRolesDiv = document.getElementById('available-roles');
+    const selectedRoleDiv = document.getElementById('selected-role');
+    const confirmRoleBtn = document.getElementById('confirm-role-btn');
+
+    let selectedRole = null;
+    let playerTokenHash = null;
+
+    // Инициализация
+    window.addEventListener('DOMContentLoaded', () => {
+      statusEl.textContent = 'Готов к подключению';
+    });
+
+    // Присоединение к комнате
+    joinBtn.addEventListener('click', async () => {
+      const roomId = roomIdInput.value.trim();
+      const token = playerTokenInput.value.trim();
+
+      if (!roomId || !token) {
+        alert('Пожалуйста, введите ID комнаты и токен игрока');
+        return;
+      }
+
+      statusEl.textContent = 'Подключение...';
+
+      try {
+        // Сохраняем токен для дальнейшего использования
+        playerTokenHash = await window.SportMafiaSync.sha256Hex(token);
+        // Используем joinPlayer для инициализации сессии
+        const res = await window.SportMafiaSync.joinPlayer(roomId, token);
+
+        if (res.needsJoin) {
+          throw new Error('Не удалось присоединиться к комнате');
+        }
+
+        statusEl.textContent = 'Подключен к комнате ' + roomId;
+        joinSection.style.display = 'none';
+        rolesSection.style.display = 'block';
+
+        // Загружаем доступные роли
+        loadAvailableRoles(roomId);
+      } catch (e) {
+        statusEl.textContent = 'Ошибка: ' + e.message;
+        console.error(e);
+      }
+    });
+
+    // Загрузка доступных ролей
+    function loadAvailableRoles(roomId) {
+        // Для простоты, определим базовые роли здесь.
+        // В реальности это может быть загружено из Firebase или другого источника.
+        const baseRoles = ['Мафия', 'Доктор', 'Комиссар', 'Бандит', 'Шахтер', 'Казначей', 'Адвокат', 'Журналист', 'Сержант', 'Мирный Житель'];
+        availableRolesDiv.innerHTML = '';
+
+        baseRoles.forEach(role => {
+            const roleElement = document.createElement('div');
+            roleElement.className = 'role-item';
+            roleElement.textContent = role;
+            roleElement.onclick = () => selectRole(role);
+            availableRolesDiv.appendChild(roleElement);
+        });
+    }
+
+    // Выбор роли
+    function selectRole(role) {
+        // Снимаем выделение с предыдущей выбранной роли
+        document.querySelectorAll('.role-item').forEach(item => item.classList.remove('selected'));
+        // Выделяем новую
+        event.currentTarget.classList.add('selected');
+        selectedRole = role;
+        selectedRoleDiv.textContent = 'Выбрана роль: ' + role;
+        selectedRoleDiv.style.display = 'block';
+        confirmRoleBtn.style.display = 'block';
+    }
+
+    // Подтверждение роли
+    confirmRoleBtn.addEventListener('click', async () => {
+        if (!selectedRole) return;
+
+        statusEl.textContent = 'Подтверждение роли...';
+
+        try {
+            // Обновляем роль в приватном узле
+            await window.SportMafiaSync.updatePlayerRole(selectedRole);
+            statusEl.textContent = 'Роль "' + selectedRole + '" подтверждена!';
+            confirmRoleBtn.disabled = true;
+        } catch (e) {
+            statusEl.textContent = 'Ошибка подтверждения: ' + e.message;
+            console.error(e);
+        }
+    });
+
+  </script>
+</body>
+</html>

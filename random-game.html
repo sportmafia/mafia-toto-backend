@@ -1,0 +1,848 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Угадай чёрного — Mafia Toto</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0d0f14;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem 4rem;
+      transition: background .6s ease;
+    }
+
+    body.night-mode { background: #020617; }
+    body.night-mode .p-card { border-color: #1e293b; opacity: 0.85; }
+    body.night-mode #video-wrap { box-shadow: 0 0 24px rgba(0,0,0,0.85); }
+    body.night-mode .step,
+    body.night-mode .info-panel { background: #0a0f1a; border-color: #1e293b; }
+    body.night-mode h1 { color: #818cf8; }
+    body.night-mode .phase-badge { background: #1e293b; color: #818cf8; border-color: #312e81; }
+
+    .phase-badge {
+      display: inline-block; font-size: .7rem; font-weight: 700;
+      padding: .2rem .55rem; border-radius: 20px;
+      background: #fef3c7; color: #92400e; border: 1px solid #fcd34d;
+      vertical-align: middle; margin-left: .5rem;
+      letter-spacing: .05em; transition: background .4s, color .4s;
+    }
+
+    a.back-btn {
+      position: fixed; top: 1rem; left: 1rem;
+      color: #64748b; text-decoration: none; font-size: .85rem; font-weight: 600;
+      background: #1e293b; border: 1px solid #334155;
+      padding: .4rem .9rem; border-radius: 8px; z-index: 100;
+    }
+    a.back-btn:hover { opacity: .75; }
+
+    h1 { font-size: 1.7rem; color: #f59e0b; letter-spacing: .05em; margin-bottom: .3rem; text-align: center; transition: color .4s; }
+    .subtitle { font-size: .82rem; color: #64748b; margin-bottom: 1.6rem; text-align: center; }
+
+    .step {
+      width: 100%; max-width: 560px;
+      background: #1e293b; border: 1px solid #2d3748;
+      border-radius: 14px; padding: 1.5rem 1.8rem; margin-bottom: 1.2rem;
+      transition: background .4s, border-color .4s;
+    }
+    .step-header { display: flex; align-items: center; gap: .7rem; margin-bottom: 1rem; }
+    .step-num {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: #f59e0b; color: #0d0f14;
+      font-size: .8rem; font-weight: 800;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .step-title { font-size: 1rem; font-weight: 700; }
+    .step-sub   { font-size: .75rem; color: #64748b; margin-top: .1rem; }
+
+    .url-row { display: flex; gap: .6rem; }
+    .url-input {
+      flex: 1; background: #0d0f14; border: 1.5px solid #334155;
+      border-radius: 8px; color: #e2e8f0; padding: .65rem .9rem;
+      font-size: .88rem; outline: none; transition: border-color .18s;
+    }
+    .url-input:focus { border-color: #f59e0b; }
+    .url-input::placeholder { color: #475569; }
+
+    .btn-primary {
+      background: #f59e0b; color: #0d0f14; border: none;
+      border-radius: 8px; padding: .65rem 1.2rem;
+      font-size: .88rem; font-weight: 700; cursor: pointer;
+      transition: opacity .18s, transform .15s; white-space: nowrap;
+    }
+    .btn-primary:hover { opacity: .88; transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: .4; pointer-events: none; }
+
+    .btn-secondary {
+      background: #1e293b; color: #e2e8f0; border: 1.5px solid #334155;
+      border-radius: 8px; padding: .55rem 1rem;
+      font-size: .82rem; font-weight: 600; cursor: pointer; transition: opacity .18s;
+    }
+    .btn-secondary:hover { opacity: .8; }
+
+    .btn-ghost {
+      background: transparent; color: #94a3b8;
+      border: 1px dashed #334155; border-radius: 8px;
+      padding: .45rem .9rem; font-size: .8rem; font-weight: 600;
+      cursor: pointer; transition: all .18s;
+    }
+    .btn-ghost:hover { background: #1e293b; color: #e2e8f0; border-style: solid; }
+
+    .platform-badges { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .8rem; }
+    .badge { font-size: .72rem; padding: .25rem .7rem; border-radius: 20px; font-weight: 600; }
+    .badge-yt { background: #ff000022; color: #ff6b6b; border: 1px solid #ff000044; }
+    .badge-tw { background: #9146ff22; color: #b985ff; border: 1px solid #9146ff44; }
+
+    .room-controls {
+      display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .9rem;
+      padding-top: .9rem; border-top: 1px solid #334155; align-items: center;
+    }
+    .room-input {
+      width: 120px; background: #0d0f14; border: 1.5px solid #334155;
+      border-radius: 8px; color: #e2e8f0; padding: .45rem .7rem;
+      font-size: .82rem; outline: none; text-transform: uppercase;
+    }
+    .room-input:focus { border-color: #00e5ff; }
+    .room-badge { font-size: .72rem; padding: .3rem .7rem; border-radius: 20px; font-weight: 700; }
+    .badge-host   { background: #f59e0b22; color: #f59e0b; border: 1px solid #f59e0b44; }
+    .badge-viewer { background: #00e5ff22; color: #00e5ff; border: 1px solid #00e5ff44; }
+
+    /* ── STUDIO LAYOUT ── */
+    .studio-layout {
+      display: grid;
+      grid-template-columns: 1fr 2fr 1fr;
+      gap: 1rem;
+      width: 100%;
+      max-width: 1200px;
+      margin-top: 1rem;
+    }
+    .col-left, .col-right { display: flex; flex-direction: column; gap: 0.6rem; }
+    .col-center { display: flex; flex-direction: column; gap: 1rem; }
+
+    /* ── PLAYER CARD ── */
+    .p-card {
+      position: relative;
+      aspect-ratio: 16 / 9;
+      background: #0f172a;
+      border: 2px solid #334155;
+      border-radius: 8px;
+      cursor: pointer;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+      padding: 0.5rem;
+      transition: border-color .2s, box-shadow .2s, opacity .4s;
+    }
+    .p-card .p-gradient {
+      position: absolute; inset: 0;
+      background: linear-gradient(to bottom, transparent 30%, rgba(0,0,0,.85) 100%);
+      pointer-events: none; z-index: 1;
+    }
+    .p-card:hover { border-color: #475569; }
+    .p-card.hot-border { border-color: #ef4444 !important; box-shadow: 0 0 8px rgba(239,68,68,0.4); }
+
+    .p-card.dead { filter: grayscale(100%); pointer-events: none; }
+    .p-card.dead .dead-x { display: flex !important; }
+    .dead-x {
+      display: none; position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 3.5rem; z-index: 10; opacity: 0.85; pointer-events: none;
+    }
+
+    /* ── BET CONTROLS ── */
+    .bet-controls {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex; gap: 0.5rem; z-index: 5;
+    }
+    .bc-btn {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid #334155; border-radius: 50%;
+      width: 34px; height: 34px; font-size: 1rem; cursor: pointer;
+      transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .bc-btn:hover { background: #1e293b; transform: scale(1.1); }
+    .bc-btn.active-maf  { background: #1f2937; border-color: #ef4444; box-shadow: 0 0 10px rgba(239,68,68,0.5); }
+    .bc-btn.active-don  { background: #3b0764; border-color: #d946ef; box-shadow: 0 0 10px rgba(217,70,239,0.5); }
+    .bc-btn.active-sher { background: #064e3b; border-color: #10b981; box-shadow: 0 0 10px rgba(16,185,129,0.5); }
+
+    .p-info {
+      position: relative; z-index: 2;
+      display: flex; justify-content: space-between;
+      width: 100%; align-items: center;
+      color: #fff; font-size: 0.78rem; font-weight: 600;
+      text-shadow: 1px 1px 2px #000;
+    }
+    .p-seat-num {
+      background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.15);
+      border-radius: 5px; padding: .1rem .4rem; font-size: .7rem; flex-shrink: 0;
+    }
+    .p-name {
+      flex: 1; margin: 0 .3rem; outline: none; cursor: text;
+      min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      padding: 1px 3px; border-radius: 3px; transition: background .15s;
+    }
+    .p-name:focus { background: rgba(255,255,255,.15); text-overflow: clip; }
+
+    .foul-badge {
+      position: absolute; top: 5px; right: 5px;
+      background: #334155; border-radius: 50%;
+      width: 22px; height: 22px; text-align: center; line-height: 22px;
+      font-size: 0.72rem; font-weight: 700; z-index: 3; cursor: pointer;
+      border: 1px solid #475569; color: #e2e8f0;
+      transition: background .18s, transform .1s; user-select: none;
+    }
+    .foul-badge:hover { transform: scale(1.15); }
+    .foul-badge.foul-max { background: #ef4444; border-color: #dc2626; color: #fff; }
+
+    .nominate-btn {
+      position: absolute; top: 5px; left: 5px; z-index: 3;
+      background: rgba(0,0,0,.7); color: #94a3b8;
+      border: 1px solid #475569; border-radius: 4px;
+      font-size: 0.68rem; font-weight: 700; padding: 1px 5px; cursor: pointer;
+      transition: background .15s, color .15s; user-select: none; line-height: 1.5;
+    }
+    .nominate-btn.active { background: #ef4444; color: #fff; border-color: #dc2626; }
+
+    .heat-badge {
+      display: none; position: absolute; bottom: 30px; left: 5px;
+      background: rgba(239,68,68,0.9); padding: 2px 6px;
+      border-radius: 4px; font-size: 0.72rem; font-weight: bold;
+      z-index: 2; color: #fff; pointer-events: none;
+    }
+
+    /* ── VIDEO ── */
+    #video-wrap {
+      position: relative; background: #000;
+      border-radius: 10px; overflow: hidden; border: 1.5px solid #2d3748;
+      transition: box-shadow .4s;
+    }
+    #video-wrap iframe { width: 100%; aspect-ratio: 16 / 9; display: block; border: none; }
+    .video-placeholder {
+      aspect-ratio: 16 / 9; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: .6rem;
+      color: #334155; font-size: .85rem; background: #0a0c10;
+    }
+    .video-placeholder .icon { font-size: 2.8rem; }
+    .live-badge {
+      position: absolute; top: .6rem; left: .6rem;
+      background: #ef4444; color: #fff; font-size: .65rem; font-weight: 800;
+      letter-spacing: .1em; padding: .18rem .5rem; border-radius: 4px;
+      animation: pulse-live 2s ease-in-out infinite;
+    }
+    @keyframes pulse-live { 0%,100%{opacity:1} 50%{opacity:.55} }
+
+    /* ── INFO PANEL ── */
+    .info-panel {
+      background: #000; border-radius: 8px; padding: 1rem;
+      text-align: center; border: 1px solid #334155; position: relative;
+      transition: background .4s;
+    }
+    .info-panel .room-meta {
+      position: absolute; top: 5px; left: 10px;
+      color: #475569; font-size: 0.7rem; font-variant-numeric: tabular-nums;
+    }
+    .info-panel .nominated { color: #ef4444; font-size: 0.85rem; letter-spacing: .04em; }
+    .info-panel .nominated span { color: #fbbf24; font-weight: 700; }
+
+    /* ── MY BETS SUMMARY ── */
+    .my-bets-panel {
+      background: #0f172a; border: 1px solid #1e293b;
+      border-radius: 8px; padding: .75rem 1rem;
+      font-size: .8rem; display: flex; flex-wrap: wrap;
+      gap: .5rem; align-items: center;
+    }
+    .my-bets-label { color: #475569; font-weight: 600; flex-shrink: 0; }
+    .bet-tag { display: inline-flex; align-items: center; gap: .3rem; padding: .2rem .55rem; border-radius: 20px; font-weight: 700; font-size: .75rem; }
+    .bet-tag-maf  { background: #1f2937; color: #f87171; border: 1px solid #ef4444; }
+    .bet-tag-don  { background: #3b0764; color: #e879f9; border: 1px solid #d946ef; }
+    .bet-tag-sher { background: #064e3b; color: #34d399; border: 1px solid #10b981; }
+    .bet-tag-empty { color: #334155; font-style: italic; }
+
+    /* ── HOST BAR ── */
+    .host-bar {
+      width: 100%; max-width: 1200px;
+      display: flex; gap: .6rem; flex-wrap: wrap; align-items: center;
+      margin-top: .8rem; padding: .7rem 1rem;
+      background: #111827; border: 1px dashed #334155; border-radius: 10px;
+    }
+    .host-bar-label { font-size: .72rem; color: #475569; font-weight: 600; margin-right: .3rem; }
+    .sync-status { margin-left: auto; font-size: .72rem; font-weight: 600; display: flex; align-items: center; gap: .35rem; }
+    .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #334155; }
+    .sync-dot.on  { background: #34d399; box-shadow: 0 0 5px rgba(52,211,153,.5); }
+    .sync-dot.off { background: #f87171; }
+
+    /* ── RESULT OVERLAY ── */
+    .result-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.82); z-index: 200;
+      align-items: center; justify-content: center; flex-direction: column; gap: 1rem;
+    }
+    .result-overlay.show { display: flex; }
+    .result-box {
+      background: #1e293b; border: 2px solid #334155;
+      border-radius: 18px; padding: 2.5rem 3rem;
+      text-align: center; max-width: 480px; width: 90%;
+    }
+    .result-emoji { font-size: 3.5rem; margin-bottom: .5rem; }
+    .result-title { font-size: 1.6rem; font-weight: 800; margin-bottom: .4rem; }
+    .result-sub   { font-size: .9rem; color: #64748b; margin-bottom: 1.5rem; }
+    .result-win  { color: #34d399; }
+    .result-lose { color: #f87171; }
+    .result-details { font-size: .82rem; color: #94a3b8; margin-bottom: 1.2rem; text-align: left; line-height: 1.8; }
+
+    #status-bar { font-size: .78rem; color: #64748b; margin-top: .6rem; min-height: 1.2em; text-align: center; }
+
+    @media (max-width: 900px) {
+      .studio-layout { grid-template-columns: 1fr; }
+      .col-left, .col-right { flex-direction: row; flex-wrap: wrap; }
+      .p-card { width: calc(20% - 0.5rem); aspect-ratio: 1; }
+      .bet-controls { gap: .25rem; }
+      .bc-btn { width: 26px; height: 26px; font-size: .75rem; }
+    }
+    @media (max-width: 500px) {
+      .p-card { width: calc(33.33% - 0.5rem); }
+      body { padding-top: 3.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <a class="back-btn" href="toto.html">← Назад</a>
+
+  <h1>🎯 Угадай чёрного <span class="phase-badge" id="phase-badge">☀️ ДЕНЬ</span></h1>
+  <p class="subtitle">YouTube · Twitch — Solo или Комната</p>
+
+  <!-- STEP 1 -->
+  <div class="step" id="step-url">
+    <div class="step-header">
+      <div class="step-num">1</div>
+      <div>
+        <div class="step-title">Вставьте ссылку на трансляцию</div>
+        <div class="step-sub">YouTube или Twitch</div>
+      </div>
+    </div>
+    <div class="url-row">
+      <input class="url-input" id="url-input" type="url"
+             placeholder="https://www.youtube.com/watch?v=..." />
+      <button class="btn-primary" onclick="loadVideo()">▶ Открыть</button>
+    </div>
+    <div class="platform-badges">
+      <span class="badge badge-yt">▶ YouTube</span>
+      <span class="badge badge-tw">● Twitch</span>
+    </div>
+    <div class="room-controls">
+      <input class="room-input" id="room-id-input" placeholder="ROOM ID" maxlength="8" />
+      <button class="btn-primary"   style="padding:.45rem .9rem;font-size:.8rem;" onclick="createRoom()">🔑 Создать</button>
+      <button class="btn-secondary" style="padding:.45rem .9rem;font-size:.8rem;" onclick="joinRoom()">👁 Войти</button>
+      <span class="room-badge" id="role-badge" style="display:none"></span>
+    </div>
+    <div id="status-bar"></div>
+  </div>
+
+  <!-- HOST BAR -->
+  <div class="host-bar" id="host-bar" style="display:none">
+    <span class="host-bar-label">🎛️ ХОСТ</span>
+    <button class="btn-ghost" onclick="toggleDayNight()">🌞/🌙 День / Ночь</button>
+    <button class="btn-ghost" onclick="revealRoles()">🏁 Открыть роли</button>
+    <button class="btn-ghost" onclick="resetGame()">🔄 Новая игра</button>
+    <div class="sync-status">
+      <div class="sync-dot" id="sync-dot"></div>
+      <span id="sync-label" style="color:#475569">не подключено</span>
+    </div>
+  </div>
+
+  <!-- STUDIO -->
+  <div class="studio-layout">
+    <div class="col-left"  id="col-left"></div>
+
+    <div class="col-center">
+      <div id="video-wrap">
+        <div class="video-placeholder">
+          <span class="icon">📺</span>
+          <span>Вставьте ссылку выше, чтобы<br>загрузить трансляцию</span>
+        </div>
+      </div>
+
+      <!-- INFO PANEL — no timer, no speaking label -->
+      <div class="info-panel">
+        <div class="room-meta" id="room-meta">Room #— | fps: — | ping: —</div>
+        <div class="nominated" style="margin-top:10px">
+          Выставленные: <span id="nominated-list">—</span>
+        </div>
+      </div>
+
+      <!-- MY BETS SUMMARY -->
+      <div class="my-bets-panel">
+        <span class="my-bets-label">🎲 Мои ставки:</span>
+        <span id="bets-summary"><span class="bet-tag-empty">не сделаны</span></span>
+        <button class="btn-ghost" style="margin-left:auto;padding:.25rem .6rem;font-size:.75rem"
+                onclick="revealRoles()">🏁 Проверить</button>
+      </div>
+    </div>
+
+    <div class="col-right" id="col-right"></div>
+  </div>
+
+  <!-- RESULT OVERLAY -->
+  <div class="result-overlay" id="result-overlay">
+    <div class="result-box">
+      <div class="result-emoji" id="result-emoji">🎴</div>
+      <div class="result-title"   id="result-title">—</div>
+      <div class="result-sub"     id="result-sub">—</div>
+      <div class="result-details" id="result-details"></div>
+      <button class="btn-primary" style="width:100%" onclick="resetGame()">🔄 Играть снова</button>
+      
+      <button class="btn-primary" style="width:100%; margin-top:10px; background:#3b82f6; color:#fff;" onclick="shareResult()">📲 Поделиться (Copy)</button>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="firebase-config.js"></script>
+
+  <script>
+    // ── FIREBASE ──
+    // Реальный конфиг загружен через firebase-config.js (window.db, window.auth)
+    const db = window.db;
+
+    // Анонимная авторизация зрителей (нужна для правил RTDB auth != null)
+    firebase.auth().signInAnonymously().catch(console.error);
+
+    // ── CONFIG ──
+    const TOTAL = 10;
+
+    // ── STATE ──
+    let nominatedPlayers = [];
+    let isNightMode      = false;
+    const fouls          = {};
+    const deadSeats      = new Set();
+    const nicks          = {};
+    for (let i = 1; i <= TOTAL; i++) { fouls[i] = 0; nicks[i] = `Игрок ${i}`; }
+
+    // viewer role bets (local only)
+    let myMafia   = new Set();
+    let myDon     = null;
+    let mySheriff = null;
+    let gameStartTime = Date.now();
+    let betTimings = {};
+
+    function getElapsed(ms) {
+      const sec = Math.floor(ms / 1000);
+      const m = Math.floor(sec / 60).toString().padStart(2, '0');
+      const s = (sec % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    // room
+    let isHost     = false;
+    let roomId     = null;
+    let roomRef    = null;
+    let fbListener = null;
+
+    // ── DOM ──
+    const colLeft     = document.getElementById('col-left');
+    const colRight    = document.getElementById('col-right');
+    const statusBar   = document.getElementById('status-bar');
+    const nominListEl = document.getElementById('nominated-list');
+    const roomMeta    = document.getElementById('room-meta');
+    const phaseBadge  = document.getElementById('phase-badge');
+    const hostBar     = document.getElementById('host-bar');
+    const syncDot     = document.getElementById('sync-dot');
+    const syncLabel   = document.getElementById('sync-label');
+    const roleBadge   = document.getElementById('role-badge');
+    const betsSummary = document.getElementById('bets-summary');
+
+    // ── BUILD GRID ──
+    function buildGrid() {
+      colLeft.innerHTML = colRight.innerHTML = '';
+      for (let i = 1; i <= TOTAL; i++) {
+        (i <= 5 ? colLeft : colRight).appendChild(makeCard(i));
+      }
+      renderRoleBets();
+    }
+
+    function makeCard(i) {
+      const card = document.createElement('div');
+      card.className = 'p-card' + (deadSeats.has(i) ? ' dead' : '');
+      card.id = `pcard-${i}`;
+      card.addEventListener('contextmenu', e => toggleDead(e, i));
+      card.addEventListener('click', () => {});
+
+      card.innerHTML = `
+        <div class="p-gradient"></div>
+        <div class="dead-x">❌</div>
+
+        <button id="nom-btn-${i}"
+                class="nominate-btn${nominatedPlayers.includes(i) ? ' active' : ''}"
+                onclick="toggleNominate(event,${i})">В</button>
+
+        <div id="foul-${i}"
+             class="foul-badge${fouls[i] >= 4 ? ' foul-max' : ''}"
+             onclick="addFoul(event,${i})">${fouls[i]}</div>
+
+        <div class="heat-badge" id="heat-${i}"></div>
+
+        <div class="bet-controls" onclick="event.stopPropagation()">
+          <button class="bc-btn" id="bc-maf-${i}"
+                  onclick="toggleRoleBet(${i},'mafia')"   title="Мафия">⚫</button>
+          <button class="bc-btn" id="bc-don-${i}"
+                  onclick="toggleRoleBet(${i},'don')"     title="Дон">🎩</button>
+          <button class="bc-btn" id="bc-sher-${i}"
+                  onclick="toggleRoleBet(${i},'sheriff')" title="Шериф">👮</button>
+        </div>
+
+        <div class="p-info">
+          <span class="p-seat-num">№${i}</span>
+          <span class="p-name"
+                contenteditable="true"
+                spellcheck="false"
+                onclick="event.stopPropagation()"
+                onblur="nicks[${i}]=this.textContent.trim()||'Игрок ${i}'"
+          >${nicks[i]}</span>
+        </div>`;
+
+      return card;
+    }
+
+    // ── ROLE BETS ──
+   function toggleRoleBet(seat, role) {
+      if (role === 'mafia') {
+        if (myMafia.has(seat)) {
+          myMafia.delete(seat);
+          delete betTimings[seat];
+          if (myDon === seat) myDon = null;
+        } else {
+          if (myMafia.size >= 3) { alert('❌ Нельзя выбрать больше 3-х мафий!'); return; }
+          myMafia.add(seat);
+          betTimings[seat] = Date.now() - gameStartTime;
+          if (mySheriff === seat) mySheriff = null;
+        }
+      } else if (role === 'don') {
+        if (myDon === seat) {
+          myDon = null;
+        } else {
+          if (!myMafia.has(seat)) {
+            if (myMafia.size >= 3) { alert('❌ Сначала освободите место под мафию (максимум 3)!'); return; }
+            myMafia.add(seat);
+          }
+          myDon = seat;
+          betTimings[seat] = Date.now() - gameStartTime;
+          if (mySheriff === seat) mySheriff = null;
+        }
+      } else if (role === 'sheriff') {
+        if (mySheriff === seat) {
+          mySheriff = null;
+          delete betTimings[seat];
+        } else {
+          mySheriff = seat;
+          betTimings[seat] = Date.now() - gameStartTime;
+          myMafia.delete(seat);
+          if (myDon === seat) myDon = null;
+        }
+      }
+      renderRoleBets();
+      renderBetsSummary();
+    }
+
+    function renderRoleBets() {
+      for (let i = 1; i <= TOTAL; i++) {
+        const btnMaf  = document.getElementById(`bc-maf-${i}`);
+        const btnDon  = document.getElementById(`bc-don-${i}`);
+        const btnSher = document.getElementById(`bc-sher-${i}`);
+        if (!btnMaf || !btnDon || !btnSher) continue;
+
+        btnMaf.classList.remove('active-maf');
+        btnDon.classList.remove('active-don');
+        btnSher.classList.remove('active-sher');
+
+        if (myMafia.has(i)) btnMaf.classList.add('active-maf');
+        if (myDon === i)    btnDon.classList.add('active-don');
+        if (mySheriff === i) btnSher.classList.add('active-sher');
+      }
+    }
+
+    function renderBetsSummary() {
+      const tags = [];
+      if (mySheriff !== null)
+        tags.push(`<span class="bet-tag bet-tag-sher">👮 №${mySheriff} ${nicks[mySheriff]}</span>`);
+      myMafia.forEach(s => {
+        if (s !== myDon)
+          tags.push(`<span class="bet-tag bet-tag-maf">⚫ №${s} ${nicks[s]}</span>`);
+      });
+      if (myDon !== null)
+        tags.push(`<span class="bet-tag bet-tag-don">🎩 №${myDon} ${nicks[myDon]}</span>`);
+      betsSummary.innerHTML = tags.length
+        ? tags.join('')
+        : '<span class="bet-tag-empty">не сделаны</span>';
+    }
+
+    // ── REVEAL ──
+    function revealRoles() {
+      if (myMafia.size === 0 && mySheriff === null) {
+        alert('⚠️ Сначала поставьте хотя бы одну ставку.'); return;
+      }
+      const input = prompt('Введите реальные роли:\nМ:1,2,3  Д:2  Ш:5\n\nПример: М:3,7,9 Д:7 Ш:2');
+      if (!input) return;
+
+      const realMafia = new Set();
+      let realDon = null, realSheriff = null;
+      const mM = input.match(/М:(\d[\d,]*)/i);
+      const dM = input.match(/Д:(\d+)/i);
+      const sM = input.match(/Ш:(\d+)/i);
+      if (mM) mM[1].split(',').forEach(n => { const s=parseInt(n); if(s) realMafia.add(s); });
+      if (dM) realDon     = parseInt(dM[1]);
+      if (sM) realSheriff = parseInt(sM[1]);
+
+      let correct = 0, total = 0;
+      const lines = [];
+
+      if (mySheriff !== null) {
+        total++; const ok = mySheriff === realSheriff; if(ok) correct++;
+        const timeStr = betTimings[mySheriff] ? getElapsed(betTimings[mySheriff]) : '--:--';
+        lines.push(`${ok?'✅':'❌'} Шериф: №${mySheriff} ${nicks[mySheriff]} <span style="color:#64748b;font-size:0.8em">(⏱️ ${timeStr})</span>`);
+      }
+      myMafia.forEach(s => {
+        total++; const ok = realMafia.has(s); if(ok) correct++;
+        const isDon = s === myDon;
+        const timeStr = betTimings[s] ? getElapsed(betTimings[s]) : '--:--';
+        lines.push(`${ok?'✅':'❌'} ${isDon?'Дон 🎩':'Мафия ⚫'}: №${s} ${nicks[s]} <span style="color:#64748b;font-size:0.8em">(⏱️ ${timeStr})</span>`);
+      });
+
+      const pct = total ? Math.round((correct/total)*100) : 0;
+      const win = pct >= 60;
+      document.getElementById('result-emoji').textContent = win ? '🏆' : pct >= 40 ? '🎯' : '💀';
+      const titleEl = document.getElementById('result-title');
+      titleEl.textContent = win ? 'Отличная игра!' : pct >= 40 ? 'Неплохо!' : 'Промах';
+      titleEl.className   = 'result-title ' + (win ? 'result-win' : 'result-lose');
+      document.getElementById('result-sub').textContent     = `Угадано ${correct} из ${total} (${pct}%)`;
+      document.getElementById('result-details').innerHTML   = lines.join('<br>');
+      document.getElementById('result-overlay').classList.add('show');
+    }
+
+    function shareResult() {
+      const title = document.getElementById('result-title').textContent;
+      const sub = document.getElementById('result-sub').textContent;
+      let text = `👁️ Mafia Toto - Мой анализ\n🏆 ${title}\n🎯 ${sub}\n\n⏱️ Время находок:\n`;
+      
+      if (mySheriff !== null) {
+        const timeStr = betTimings[mySheriff] ? getElapsed(betTimings[mySheriff]) : '--:--';
+        text += `👮 Шериф (№${mySheriff}): на ${timeStr}\n`;
+      }
+      myMafia.forEach(s => {
+        const isDon = s === myDon;
+        const timeStr = betTimings[s] ? getElapsed(betTimings[s]) : '--:--';
+        text += `${isDon ? '🎩 Дон' : '⚫ Мафия'} (№${s}): на ${timeStr}\n`;
+      });
+      text += `\nСделай свой предикт на sportmafia.app!`;
+
+      navigator.clipboard.writeText(text).then(() => {
+        alert('✅ Текст скопирован! Отправь его друзьям или в чат трансляции.');
+      }).catch(err => {
+        alert('❌ Ошибка копирования. ' + err);
+      });
+    }
+
+    // ── HOST ACTIONS → FIREBASE ──
+    function toggleDead(e, num) {
+      e.preventDefault(); e.stopPropagation();
+      if (!isHost) return;
+      const willBeDead = !deadSeats.has(num);
+      const patch = {}; patch[`deadPlayers/${num}`] = willBeDead || null;
+      pushRoomState(patch);
+      _applyDead(num, willBeDead);
+    }
+    function _applyDead(num, dead) {
+      const card = document.getElementById(`pcard-${num}`);
+      if (dead) { deadSeats.add(num);    card && card.classList.add('dead'); }
+      else      { deadSeats.delete(num); card && card.classList.remove('dead'); }
+    }
+
+    function addFoul(e, num) {
+      e.stopPropagation(); e.preventDefault();
+      if (!isHost) return;
+      fouls[num] = (fouls[num] + 1) % 5;
+      const badge = document.getElementById(`foul-${num}`);
+      if (badge) { badge.textContent = fouls[num]; badge.classList.toggle('foul-max', fouls[num] >= 4); }
+      const patch = {}; patch[`fouls/${num}`] = fouls[num];
+      pushRoomState(patch);
+    }
+
+    function toggleNominate(e, num) {
+      e.stopPropagation(); e.preventDefault();
+      if (!isHost) return;
+      const idx = nominatedPlayers.indexOf(num);
+      if (idx === -1) nominatedPlayers.push(num); else nominatedPlayers.splice(idx, 1);
+      nominatedPlayers.sort((a, b) => a - b);
+      _renderNominated();
+      pushRoomState({ nominatedPlayers: nominatedPlayers.length ? nominatedPlayers : {} });
+    }
+    function _renderNominated() {
+      nominListEl.textContent = nominatedPlayers.length ? nominatedPlayers.join(', ') : '—';
+      for (let i = 1; i <= TOTAL; i++) {
+        const btn = document.getElementById(`nom-btn-${i}`);
+        if (btn) btn.classList.toggle('active', nominatedPlayers.includes(i));
+      }
+    }
+
+    function applyDayNight(night) {
+      isNightMode = night;
+      document.body.classList.toggle('night-mode', night);
+      phaseBadge.textContent = night ? '🌙 НОЧЬ' : '☀️ ДЕНЬ';
+    }
+    function toggleDayNight() {
+      applyDayNight(!isNightMode);
+      pushRoomState({ dayNightPhase: isNightMode ? 'night' : 'day' });
+    }
+
+    // ── FIREBASE ROOM ──
+    function genRoomId() { return Math.random().toString(36).slice(2,8).toUpperCase(); }
+
+    function createRoom() {
+      roomId = (document.getElementById('room-id-input').value.trim().toUpperCase()) || genRoomId();
+      document.getElementById('room-id-input').value = roomId;
+      isHost = true; connectRoom();
+      hostBar.style.display   = 'flex';
+      roleBadge.style.display = 'inline-block';
+      roleBadge.textContent   = `🔑 Хост: ${roomId}`;
+      roleBadge.className     = 'room-badge badge-host';
+      setStatus(`✅ Комната ${roomId} создана`, 'ok');
+    }
+
+    function joinRoom() {
+      roomId = document.getElementById('room-id-input').value.trim().toUpperCase();
+      if (!roomId) { setStatus('⚠️ Введите Room ID', 'warn'); return; }
+      isHost = false; connectRoom();
+      hostBar.style.display   = 'none';
+      roleBadge.style.display = 'inline-block';
+      roleBadge.textContent   = `👁 Зритель: ${roomId}`;
+      roleBadge.className     = 'room-badge badge-viewer';
+      setStatus(`📡 Подключение к комнате ${roomId}…`, 'ok');
+    }
+
+    function connectRoom() {
+      if (roomRef && fbListener) roomRef.off('value', fbListener);
+      roomRef = db.ref(`rooms/${roomId}`);
+      if (isHost) {
+        roomRef.set({
+          dayNightPhase: 'day', deadPlayers: {},
+          fouls: _buildFoulsObj(), nominatedPlayers: [], createdAt: Date.now()
+        });
+      }
+      fbListener = roomRef.on('value', snap => {
+        const data = snap.val(); if (!data) return;
+        _applyRemoteState(data); setSyncStatus(true);
+      }, () => setSyncStatus(false));
+    }
+
+    function pushRoomState(patch) { if (!roomRef || !isHost) return; roomRef.update(patch); }
+    function _buildFoulsObj() { const o={}; for(let i=1;i<=TOTAL;i++) o[i]=fouls[i]||0; return o; }
+
+    function _applyRemoteState(data) {
+      if (data.dayNightPhase !== undefined) applyDayNight(data.dayNightPhase === 'night');
+      if (data.deadPlayers) { for(let i=1;i<=TOTAL;i++) _applyDead(i, !!data.deadPlayers[i]); }
+      if (data.fouls) {
+        for (let i=1;i<=TOTAL;i++) {
+          fouls[i] = Number(data.fouls[i]||0);
+          const badge = document.getElementById(`foul-${i}`);
+          if (badge) { badge.textContent = fouls[i]; badge.classList.toggle('foul-max', fouls[i]>=4); }
+        }
+      }
+      if (data.nominatedPlayers !== undefined) {
+        nominatedPlayers = Array.isArray(data.nominatedPlayers)
+          ? data.nominatedPlayers
+          : Object.values(data.nominatedPlayers||{});
+        _renderNominated();
+      }
+    }
+
+    function setSyncStatus(ok) {
+      syncDot.className = 'sync-dot '+(ok?'on':'off');
+      syncLabel.textContent = ok ? `синк: ${roomId}` : 'ошибка';
+      syncLabel.style.color = ok ? '#34d399' : '#f87171';
+    }
+
+    // ── VIDEO ──
+    function loadVideo() {
+      const raw = document.getElementById('url-input').value.trim();
+      if (!raw) { setStatus('⚠️ Вставьте ссылку', 'warn'); return; }
+      const url = toEmbedUrl(raw);
+      if (!url)  { setStatus('❌ Неподдерживаемый формат', 'err'); return; }
+      document.getElementById('video-wrap').innerHTML =
+        `<div class="live-badge">● LIVE</div>
+         <iframe src="${url}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+      setStatus('✅ Трансляция загружена', 'ok');
+      updateInfoPanel();
+    }
+
+    function toEmbedUrl(url) {
+      try {
+        const u = new URL(url);
+        if (u.hostname.includes('youtube.com') || u.hostname.includes('youtu.be')) {
+          const v = u.searchParams.get('v') || (u.hostname === 'youtu.be' ? u.pathname.slice(1) : null);
+          if (v) return `https://www.youtube.com/embed/${v}?autoplay=1`;
+          const path = u.pathname.replace(/^\//,'');
+          if (path) return `https://www.youtube.com/embed/live_stream?channel=${path}&autoplay=1`;
+        }
+        if (u.hostname.includes('twitch.tv')) {
+          const ch = u.pathname.split('/').filter(Boolean)[0];
+          if (ch) return `https://player.twitch.tv/?channel=${ch}&parent=${location.hostname||'localhost'}&autoplay=true`;
+        }
+      } catch {}
+      return null;
+    }
+
+    // ── UTILS ──
+    function updateInfoPanel() {
+      roomMeta.textContent =
+        `Room #${roomId||Math.floor(1e5+Math.random()*9e5)} | fps: 60 | ping: ${20+Math.floor(Math.random()*60)} ms`;
+    }
+    function updatePing() {
+      const p = roomMeta.textContent.split('|');
+      if (p.length >= 3)
+        roomMeta.textContent = p[0]+'| fps: 60 | ping: '+(20+Math.floor(Math.random()*60))+' ms';
+    }
+    function setStatus(msg, type) {
+      statusBar.textContent = msg;
+      statusBar.style.color = type==='ok'?'#34d399':type==='err'?'#f87171':'#fbbf24';
+    }
+
+    // ── RESET ──
+    function resetGame() {
+      nominatedPlayers=[]; isNightMode=false; deadSeats.clear();
+      for(let i=1;i<=TOTAL;i++) fouls[i]=0;
+      myMafia=new Set(); myDon=null; mySheriff=null;
+      
+      // ВОТ ТВОИ ДВЕ НОВЫЕ СТРОКИ:
+      gameStartTime = Date.now();
+      betTimings = {};
+      
+      applyDayNight(false);
+      nominListEl.textContent='—'; statusBar.textContent='';
+      document.getElementById('result-overlay').classList.remove('show');
+      renderBetsSummary(); buildGrid();
+      if (isHost && roomRef) {
+        roomRef.set({
+          dayNightPhase:'day', deadPlayers:{},
+          fouls:_buildFoulsObj(), nominatedPlayers:[], resetAt:Date.now()
+        });
+      }
+    }
+
+    // ── INIT ──
+    setInterval(updatePing, 4000);
+    buildGrid();
+    updateInfoPanel();
+    renderBetsSummary();
+  </script>
+</body>
+</html>

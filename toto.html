@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mafia Toto — Главная</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0d0f14;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.8rem;
+      padding: 2rem 1rem;
+    }
+
+    .logo { font-size: 3rem; }
+
+    h1 {
+      font-size: 2rem;
+      letter-spacing: .06em;
+      color: #f59e0b;
+      text-align: center;
+    }
+
+    p {
+      color: #64748b;
+      font-size: .9rem;
+      text-align: center;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      width: 100%;
+      max-width: 340px;
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.1rem 1.5rem;
+      border-radius: 14px;
+      border: none;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: opacity .18s, transform .18s;
+    }
+    .btn:hover { opacity: .88; transform: translateY(-2px); }
+
+    .btn-icon {
+      font-size: 1.6rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .btn-text { display: flex; flex-direction: column; gap: .15rem; text-align: left; }
+    .btn-title { font-size: 1rem; font-weight: 700; }
+    .btn-sub   { font-size: .75rem; font-weight: 400; opacity: .75; }
+
+    .btn-player {
+      background: #f59e0b;
+      color: #0d0f14;
+    }
+    .btn-observer {
+      background: #1e293b;
+      color: #e2e8f0;
+      border: 1.5px solid #334155;
+    }
+    .btn-live {
+      background: #0f3460;
+      color: #e2e8f0;
+      border: 1.5px solid #1a4a7a;
+    }
+    .btn-random {
+      background: #1a1a2e;
+      color: #e2e8f0;
+      border: 1.5px solid #4a1a6a;
+    }
+
+    .divider {
+      width: 100%;
+      max-width: 340px;
+      border: none;
+      border-top: 1px solid #1e293b;
+    }
+
+    .version {
+      font-size: .72rem;
+      color: #334155;
+    }
+  </style>
+</head>
+<body>
+  <a href="index.html" style="position:fixed;top:1rem;left:1rem;color:#64748b;text-decoration:none;font-size:.85rem;font-weight:600;background:#1e293b;border:1px solid #334155;padding:.4rem .9rem;border-radius:8px;transition:opacity .18s;">← На главную</a>
+  <div class="logo">🎴</div>
+  <h1>Mafia Toto</h1>
+  <p>Выберите режим</p>
+
+  <div class="btn-group">
+    <!-- Основной тотализатор (observer.html) -->
+    <a class="btn btn-player" href="observer.html">
+      <span class="btn-icon">🎯</span>
+      <span class="btn-text">
+        <span class="btn-title">Тотализатор</span>
+        <span class="btn-sub">Сделать ставки на роли игроков</span>
+      </span>
+    </a>
+
+    <!-- Реал-тайм слайдер доверия -->
+    <a class="btn btn-live" href="game.html">
+      <span class="btn-icon">📡</span>
+      <span class="btn-text">
+        <span class="btn-title">Live — Доверие толпы</span>
+        <span class="btn-sub">Реал-тайм ползунок + Socket.IO</span>
+      </span>
+    </a>
+
+    <!-- Угадай чёрного — рандомная игра -->
+    <a class="btn btn-random" href="random-game.html">
+      <span class="btn-icon">🎯</span>
+      <span class="btn-text">
+        <span class="btn-title">Угадай чёрного</span>
+        <span class="btn-sub">YouTube / Twitch · Solo или Комната</span>
+      </span>
+    </a>
+
+    <hr class="divider" />
+
+    <!-- Seed данных (только для разработки) -->
+    <button class="btn btn-observer" onclick="seedData()">
+      <span class="btn-icon">🗄️</span>
+      <span class="btn-text">
+        <span class="btn-title">Seed — заполнить БД</span>
+        <span class="btn-sub">Создать mock-данные для старта</span>
+      </span>
+    </button>
+  </div>
+
+  <span class="version">Mafia Toto MVP · Socket.IO + PostgreSQL</span>
+
+  <script>
+    async function seedData() {
+      const btn = event.currentTarget;
+      btn.style.opacity = '.5';
+      btn.style.pointerEvents = 'none';
+      try {
+        const res = await fetch('https://mafia-api-9z0w.onrender.com/api/seed', { method: 'POST' });
+        const data = await res.json();
+        alert(data.ok ? '✅ ' + data.message : '❌ ' + data.error);
+      } catch (e) {
+        alert('❌ Нет соединения с сервером: ' + e.message);
+      }
+      btn.style.opacity = '';
+      btn.style.pointerEvents = '';
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>SportMafia — Host (Judge)</title>
+  <style>
+    body { font-family: sans-serif; background: #222; color: #eee; padding: 20px; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #d32f2f; color: white; border: none; border-radius: 4px; }
+    .box { background: #333; padding: 15px; margin-top: 15px; border-radius: 8px; }
+    .link-row { margin: 5px 0; padding: 5px; background: #444; display: flex; justify-content: space-between; }
+    a { color: #82b1ff; }
+  </style>
+</head>
+<body>
+  <div style="margin-bottom:12px;"><a href="index.html">← На главную</a></div>
+  <h1>👮 Панель Судьи</h1>
+  <div id="status">Загрузка...</div>
+  
+  <div style="margin-top:20px;">
+    <button id="create-btn">Создать новую комнату</button>
+  </div>
+
+  <div id="room-info" class="box" style="display:none;">
+    <h2>Комната: <span id="room-id" style="color:#d32f2f"></span></h2>
+    <h3>Ссылки для игроков:</h3>
+    <div id="links-list"></div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="sync.js"></script>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const createBtn = document.getElementById('create-btn');
+    const roomInfo = document.getElementById('room-info');
+    const roomIdEl = document.getElementById('room-id');
+    const linksList = document.getElementById('links-list');
+
+    // Инициализация хоста
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        await window.SportMafiaSync.initHost({
+          statusEl: statusEl,
+          onError: (err) => alert('Ошибка: ' + err.message)
+        });
+        statusEl.textContent = 'Готов к работе (Firebase подключен)';
+      } catch (e) {
+        statusEl.textContent = 'Ошибка подключения: ' + e.message;
+      }
+    });
+
+    // Создание комнаты
+    createBtn.addEventListener('click', async () => {
+      statusEl.textContent = 'Создание комнаты...';
+      try {
+        const res = await window.SportMafiaSync.hostCreateRoom();
+        
+        // Отображаем результат
+        roomIdEl.textContent = res.roomId;
+        roomInfo.style.display = 'block';
+        statusEl.textContent = 'Комната создана!';
+        
+        // Генерируем ссылки
+        linksList.innerHTML = '';
+        for (let seat = 1; seat <= 10; seat++) {
+          const link = res.linksBySeat[seat]; // Это относительная ссылка, например "player.html?..."
+          const fullLink = window.location.origin + window.location.pathname.replace('host.html', '') + link;
+          
+          const div = document.createElement('div');
+          div.className = 'link-row';
+          div.innerHTML = `
+            <span>Слот ${seat}</span>
+            <a href="${link}" target="_blank">Открыть игрока</a>
+          `;
+          linksList.appendChild(div);
+        }
+      } catch (e) {
+        alert('Ошибка создания: ' + e.message);
+        console.error(e);
+      }
+    });
+  </script>
+</body>
+</html>

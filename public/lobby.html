@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SportMafia — Лобби</title>
+    <style>
+        :root {
+            --bg: #1a1a1d;
+            --panel: #2b2b2e;
+            --text: #e0e0e0;
+            --accent: #3498db;
+            --green: #27ae60;
+            --red: #c3073f;
+            --gold: #f1c40f;
+            --border: #444;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+        }
+
+        .screen { display: none; }
+        .screen.active { display: block; }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 8px;
+            font-size: 1.6em;
+            color: var(--gold);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            font-size: 0.9em;
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: bold;
+            font-size: 0.9em;
+            color: #aaa;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            background: #111;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: white;
+            font-size: 1em;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: var(--accent);
+        }
+
+        .form-group input::placeholder {
+            color: #666;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+
+        .btn:active { transform: scale(0.97); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-create {
+            background: var(--green);
+            color: white;
+        }
+
+        .btn-join {
+            background: var(--accent);
+            color: white;
+        }
+
+        .divider {
+            text-align: center;
+            color: #555;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 40%;
+            height: 1px;
+            background: #333;
+        }
+
+        .divider::before { left: 0; }
+        .divider::after  { right: 0; }
+
+        /* --- Lobby Screen --- */
+        .lobby-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .room-id-display {
+            display: inline-block;
+            background: #111;
+            border: 1px solid var(--gold);
+            color: var(--gold);
+            padding: 6px 18px;
+            border-radius: 6px;
+            font-size: 1.3em;
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin-top: 8px;
+            user-select: all;
+            cursor: pointer;
+        }
+
+        .player-count {
+            color: #888;
+            font-size: 0.9em;
+            margin-top: 8px;
+        }
+
+        .players-list {
+            list-style: none;
+            margin: 20px 0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .players-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: #222;
+            border: 1px solid #333;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: border-color 0.2s;
+        }
+
+        .players-list li.ready {
+            border-color: var(--green);
+            background: #1a2e1a;
+        }
+
+        .players-list li.disconnected {
+            opacity: 0.4;
+        }
+
+        .player-name {
+            font-weight: bold;
+            font-size: 1.05em;
+        }
+
+        .player-name .you-tag {
+            color: var(--accent);
+            font-size: 0.8em;
+            margin-left: 6px;
+        }
+
+        .player-status {
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        .player-status.status-ready     { color: var(--green); }
+        .player-status.status-not-ready  { color: #666; }
+
+        .btn-ready {
+            width: 100%;
+            padding: 16px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #333;
+            color: #aaa;
+        }
+
+        .btn-ready.is-ready {
+            background: var(--green);
+            border-color: var(--green);
+            color: white;
+            box-shadow: 0 0 20px rgba(39, 174, 96, 0.3);
+        }
+
+        .btn-ready:hover { opacity: 0.9; }
+
+        /* --- Game Started Banner --- */
+        .game-started-banner {
+            text-align: center;
+            padding: 30px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .game-started-banner h2 {
+            color: var(--gold);
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+
+        .game-started-banner p { color: #aaa; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .error-msg {
+            color: var(--red);
+            text-align: center;
+            font-size: 0.9em;
+            margin-top: 10px;
+            min-height: 20px;
+        }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-bottom: 16px;
+            color: #888;
+            text-decoration: none;
+            font-size: 0.9em;
+        }
+
+        .back-link:hover { color: var(--accent); }
+
+        /* --- Seating Screen --- */
+        .seat-btn {
+            width: 100%;
+            aspect-ratio: 1;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            background: #222;
+            color: var(--text);
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 8px;
+            min-height: 70px;
+        }
+
+        .seat-btn:hover:not(:disabled) {
+            border-color: var(--accent);
+            background: #2a3a4a;
+            transform: scale(1.05);
+        }
+
+        .seat-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .seat-btn.seat-taken {
+            background: #1a2e1a;
+            border-color: var(--green);
+            cursor: default;
+        }
+
+        .seat-btn.seat-available {
+            border-color: var(--accent);
+            background: #1a2a3a;
+            animation: seatPulse 2s infinite;
+        }
+
+        .seat-btn.seat-waiting {
+            background: #1a1a1d;
+            border-color: #333;
+            opacity: 0.5;
+        }
+
+        .seat-btn .seat-number {
+            font-size: 1.4em;
+            line-height: 1;
+        }
+
+        .seat-btn .seat-label {
+            font-size: 0.65em;
+            color: #888;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        .seat-btn.seat-taken .seat-label {
+            color: var(--green);
+        }
+
+        @keyframes seatPulse {
+            0%   { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.4); }
+            50%  { box-shadow: 0 0 15px 3px rgba(52, 152, 219, 0.2); }
+            100% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.4); }
+        }
+
+        .your-turn-text {
+            color: var(--green) !important;
+            text-shadow: 0 0 10px rgba(39, 174, 96, 0.4);
+        }
+
+        .waiting-turn-text {
+            color: #888 !important;
+        }
+
+        /* --- Role Screen --- */
+        .role-card {
+            background: #222;
+            border: 2px dashed #444;
+            border-radius: 15px;
+            padding: 40px 20px;
+            text-align: center;
+            font-size: 2em;
+            margin: 20px 0;
+            transition: all 0.4s ease;
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+        }
+
+        .role-card.role-revealed { border-style: solid; }
+
+        .role-card.role-don {
+            border-color: #333;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2020 100%);
+            color: #aaa;
+        }
+
+        .role-card.role-mafia {
+            border-color: #555;
+            background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
+            color: #999;
+        }
+
+        .role-card.role-sheriff {
+            border-color: var(--gold);
+            background: linear-gradient(135deg, #2a2a10 0%, #3a3510 100%);
+            color: var(--gold);
+        }
+
+        .role-card.role-citizen {
+            border-color: var(--accent);
+            background: linear-gradient(135deg, #1a2030 0%, #1a2a3a 100%);
+            color: var(--accent);
+        }
+
+        .role-card.role-accepted {
+            border-color: var(--green) !important;
+            background: #1a2e1a !important;
+            color: var(--green) !important;
+        }
+
+        .role-emoji { font-size: 1.5em; line-height: 1.2; margin-bottom: 8px; }
+
+        .role-name {
+            font-size: 0.7em;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .role-hidden-text { color: #555; font-size: 0.6em; }
+
+        @keyframes roleReveal {
+            0%   { transform: scale(0.8) rotateY(90deg); opacity: 0; }
+            100% { transform: scale(1) rotateY(0deg); opacity: 1; }
+        }
+
+        .role-card.role-animate { animation: roleReveal 0.5s ease forwards; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">&larr; На главную</a>
+
+        <!-- ============= ЭКРАН ВХОДА ============= -->
+        <div id="screen-entry" class="screen active">
+            <div class="card">
+                <h1>&#127917; SportMafia</h1>
+                <p class="subtitle">Hostless Лобби</p>
+
+                <div class="form-group">
+                    <label for="input-nickname">Ваш никнейм</label>
+                    <input type="text" id="input-nickname" placeholder="Введите имя..." maxlength="20" autocomplete="off">
+                </div>
+
+                <div class="form-group">
+                    <label for="select-max-players">Макс. игроков</label>
+                    <select id="select-max-players">
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                        <option value="9">9</option>
+                        <option value="10" selected>10</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-create" id="btn-create">&#128640; Создать комнату</button>
+
+                <div class="divider">или</div>
+
+                <div class="form-group">
+                    <label for="input-room-id">ID комнаты</label>
+                    <input type="text" id="input-room-id" placeholder="Например: ABC123" maxlength="10" autocomplete="off" style="text-transform:uppercase">
+                </div>
+
+                <button class="btn btn-join" id="btn-join">&#128279; Присоединиться</button>
+
+                <div id="entry-error" class="error-msg"></div>
+            </div>
+        </div>
+
+        <!-- ============= ЭКРАН ЛОББИ ============= -->
+        <div id="screen-lobby" class="screen">
+            <div class="card">
+                <div class="lobby-header">
+                    <h1>&#127968; Лобби</h1>
+                    <div class="room-id-display" id="lobby-room-id" title="Нажмите, чтобы скопировать">---</div>
+                    <div class="player-count" id="lobby-player-count">Игроков: 0 / 10</div>
+                </div>
+
+                <ul class="players-list" id="lobby-players-list">
+                    <li style="color:#666;justify-content:center">Загрузка...</li>
+                </ul>
+
+                <button class="btn-ready" id="btn-ready">&#9744; Я ГОТОВ</button>
+
+                <div id="lobby-error" class="error-msg"></div>
+
+                <div id="game-started-banner" class="game-started-banner" style="display:none;">
+                    <h2>&#127918; Игра началась!</h2>
+                    <p>Ожидаем фазу выбора мест...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============= ЭКРАН РАССАДКИ ============= -->
+        <div id="screen-seating" class="screen">
+            <div class="card">
+                <h1>&#129681; Выбор мест</h1>
+                <p class="subtitle" id="seating-room-label">Комната: ---</p>
+
+                <h3 id="seating-status" style="text-align: center; margin-bottom: 20px; color: var(--gold);">
+                    Ожидание...
+                </h3>
+
+                <div id="seating-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px;">
+                </div>
+
+                <div id="seating-players-info" style="margin-top: 10px;">
+                    <p style="color: #888; font-size: 0.85em; text-align: center;">Игроки выбирают места по очереди</p>
+                </div>
+
+                <div id="seating-error" class="error-msg"></div>
+            </div>
+        </div>
+
+        <!-- ============= ЭКРАН РОЛЕЙ ============= -->
+        <div id="screen-roles" class="screen">
+            <div class="card">
+                <h1>&#127917; Ваша роль</h1>
+                <p class="subtitle" id="roles-room-label">Комната: ---</p>
+
+                <div id="role-card" class="role-card">
+                    <span class="role-hidden-text">Нажмите кнопку ниже, чтобы увидеть свою роль</span>
+                    <span class="role-emoji">&#10067;</span>
+                </div>
+
+                <button id="btn-show-role" class="btn btn-join" style="width: 100%; margin-top: 10px;">
+                    &#128065;&#65039; Показать роль
+                </button>
+
+                <button id="btn-understand-role" class="btn btn-create" style="display: none; width: 100%; margin-top: 10px;">
+                    &#9989; Роль понял!
+                </button>
+
+                <p id="roles-progress" style="text-align: center; color: #888; margin-top: 15px; font-size: 0.9em;">
+                    Ожидаем игроков...
+                </p>
+
+                <div id="roles-error" class="error-msg"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK (compat) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+    <!-- Socket.io client -->
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <script src="/config.env.js"></script>
+
+    <!-- Lobby logic -->
+    <script src="/lobby.js"></script>
+</body>
+</html>

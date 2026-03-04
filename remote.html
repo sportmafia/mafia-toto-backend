@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SportMafia — Пульт авто-судьи</title>
+  <style>
+    :root {
+      --bg: #121212;
+      --card: #1e1e1e;
+      --text: #e0e0e0;
+      --muted: #9e9e9e;
+      --accent: #d32f2f;
+      --line: #333;
+      --green: #27ae60;
+      --blue: #3498db;
+      --gold: #f1c40f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 16px;
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    .card {
+      max-width: 560px; margin: 0 auto;
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 14px; padding: 20px;
+    }
+    h1 { margin: 0 0 4px; color: var(--accent); font-size: 1.4rem; }
+    .muted { color: var(--muted); font-size: 0.88rem; }
+    #status { margin-top: 10px; font-weight: 700; }
+
+    .toggle-group { margin-top: 18px; }
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 0; border-bottom: 1px solid var(--line);
+    }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle-label { font-weight: 600; font-size: 0.95rem; }
+    .toggle-desc { color: var(--muted); font-size: 0.82rem; margin-top: 2px; }
+
+    /* iOS-style toggle switch */
+    .switch { position: relative; display: inline-block; width: 50px; height: 28px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background: #444; border-radius: 28px; transition: .3s;
+    }
+    .slider::before {
+      content: ''; position: absolute;
+      width: 22px; height: 22px; left: 3px; bottom: 3px;
+      background: #fff; border-radius: 50%; transition: .3s;
+    }
+    input:checked + .slider { background: var(--green); }
+    input:checked + .slider::before { transform: translateX(22px); }
+
+    .btn-kill-all {
+      margin-top: 18px; width: 100%; padding: 14px;
+      background: var(--accent); color: #fff; border: none;
+      border-radius: 10px; font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: opacity .2s;
+    }
+    .btn-kill-all:hover { opacity: .85; }
+
+    .status-badge {
+      display: inline-block; padding: 4px 10px; border-radius: 6px;
+      font-size: 0.82rem; font-weight: 700; margin-top: 12px;
+    }
+    .badge-on { background: rgba(39,174,96,.2); color: var(--green); }
+    .badge-off { background: rgba(211,47,47,.15); color: var(--accent); }
+
+    .current-values {
+      margin-top: 14px; padding: 10px;
+      background: #191919; border: 1px solid var(--line); border-radius: 10px;
+      font-size: 0.85rem; color: var(--muted);
+    }
+    .current-values div { padding: 3px 0; }
+    .val-on { color: var(--green); }
+    .val-off { color: #666; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="muted" style="margin-bottom:8px;">
+      <a href="index.html" style="color:inherit;">← На главную</a> &nbsp;|&nbsp;
+      <a href="judge.html" style="color:inherit;">Судья</a>
+    </div>
+    <h1>🤖 Пульт авто-судьи</h1>
+    <div class="muted">Гибридный режим: включайте и выключайте автоматику для каждой фазы игры.</div>
+    <div id="status">🔴 Не подключено</div>
+
+    <div class="toggle-group">
+
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">⏱ Автосмена фаз</div>
+          <div class="toggle-desc">Автоматически переключает День→Ночь по таймеру речей</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle-autoPhaseShift" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">⚠️ Авто-фолы</div>
+          <div class="toggle-desc">Игроки голосуют за фолы через телефоны</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle-autoFouls" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">🗳 Авто-голосование</div>
+          <div class="toggle-desc">Дневная казнь проходит через телефоны игроков</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle-autoVoting" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">🌙 Авто-ночь</div>
+          <div class="toggle-desc">Мафия стреляет, Шериф и Дон проверяют через телефоны</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle-autoNight" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+    </div>
+
+    <button class="btn-kill-all" id="btn-disable-all">
+      🔌 Выключить всю автоматику
+    </button>
+
+    <div id="mode-badge"></div>
+
+    <div class="current-values" id="current-values">
+      <div><b>Текущие значения:</b></div>
+      <div>Загрузка...</div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="sync.js"></script>
+  <script>
+    (function () {
+      var SETTINGS_KEYS = ['autoPhaseShift', 'autoFouls', 'autoVoting', 'autoNight'];
+      var currentSettings = {};
+      var settingsUnsub = null;
+      var ignoreNextChange = false;
+
+      function byId(id) { return document.getElementById(id); }
+
+      function updateBadge() {
+        var el = byId('mode-badge');
+        if (!el) return;
+        var anyOn = SETTINGS_KEYS.some(function (k) { return !!currentSettings[k]; });
+        if (anyOn) {
+          el.innerHTML = '<span class="status-badge badge-on">🤖 Авто-судья АКТИВЕН</span>';
+        } else {
+          el.innerHTML = '<span class="status-badge badge-off">👤 Ручной режим (ведущий)</span>';
+        }
+      }
+
+      function renderCurrentValues() {
+        var el = byId('current-values');
+        if (!el) return;
+        var labels = {
+          autoPhaseShift: '⏱ Автосмена фаз',
+          autoFouls: '⚠️ Авто-фолы',
+          autoVoting: '🗳 Авто-голосование',
+          autoNight: '🌙 Авто-ночь'
+        };
+        var html = '<div><b>Текущие значения в Firebase:</b></div>';
+        SETTINGS_KEYS.forEach(function (key) {
+          var on = !!currentSettings[key];
+          html += '<div class="' + (on ? 'val-on' : 'val-off') + '">' +
+            labels[key] + ': ' + (on ? '✅ ВКЛ' : '❌ ВЫКЛ') + '</div>';
+        });
+        el.innerHTML = html;
+      }
+
+      function syncTogglesFromSettings(settings) {
+        ignoreNextChange = true;
+        SETTINGS_KEYS.forEach(function (key) {
+          var cb = byId('toggle-' + key);
+          if (cb) cb.checked = !!settings[key];
+        });
+        ignoreNextChange = false;
+      }
+
+      function onSettingsChanged(settings) {
+        currentSettings = settings || {};
+        syncTogglesFromSettings(currentSettings);
+        updateBadge();
+        renderCurrentValues();
+      }
+
+      function pushSetting(key, value) {
+        if (ignoreNextChange) return;
+        var obj = {};
+        obj[key] = value;
+        window.SportMafiaSync.updateRoomSettings(obj).catch(function (e) {
+          window.SportMafiaSync.pushToast('Ошибка: ' + (e.message || 'unknown'), 'error');
+        });
+      }
+
+      // Bind toggles
+      SETTINGS_KEYS.forEach(function (key) {
+        var cb = byId('toggle-' + key);
+        if (!cb) return;
+        cb.addEventListener('change', function () {
+          pushSetting(key, cb.checked);
+        });
+      });
+
+      // Disable all
+      byId('btn-disable-all').addEventListener('click', function () {
+        var allOff = {};
+        SETTINGS_KEYS.forEach(function (k) { allOff[k] = false; });
+        window.SportMafiaSync.updateRoomSettings(allOff).catch(function (e) {
+          window.SportMafiaSync.pushToast('Ошибка: ' + (e.message || 'unknown'), 'error');
+        });
+      });
+
+      // Init
+      async function init() {
+        try {
+          var hostInit = await window.SportMafiaSync.initHost({
+            statusEl: byId('status'),
+            onError: function (err) {
+              byId('status').textContent = '🔴 ' + (err.message || 'Нет связи');
+            }
+          });
+
+          if (!hostInit.roomId) {
+            byId('status').textContent = '🟡 Нет комнаты. Создайте игру в judge.html';
+            return;
+          }
+
+          settingsUnsub = window.SportMafiaSync.listenToRoomSettings(onSettingsChanged);
+        } catch (e) {
+          byId('status').textContent = '🔴 Ошибка: ' + (e.message || 'unknown');
+        }
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+</body>
+</html>

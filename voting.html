@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SportMafia — Тренажёр попилов</title>
+  <style>
+    :root {
+      --bg: #121212;
+      --card: #1e1e1e;
+      --text: #e0e0e0;
+      --muted: #9e9e9e;
+      --accent: #d32f2f;
+      --line: #333;
+      --success: #4caf50;
+      --info: #2196f3;
+    }
+    body {
+      margin: 0;
+      padding: 16px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    .card {
+      max-width: 680px;
+      margin: 0 auto;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 20px;
+      box-sizing: border-box;
+      position: relative;
+    }
+    h1 { margin: 0 0 8px; color: var(--accent); text-align: center; }
+    .muted { color: var(--muted); font-size: 0.92rem; text-align: center; margin-bottom: 20px; }
+    
+    /* Верхняя панель управления */
+    .top-controls {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 20px; background: #2b2b2b; padding: 10px 14px; border-radius: 8px;
+    }
+    .toggle-btn {
+      background: #444; color: #fff; border: 1px solid #555;
+      padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.2s;
+    }
+    .toggle-btn:hover { background: #555; }
+    .toggle-btn.active-trainer { background: var(--success); border-color: var(--success); }
+    .menu-btn {
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+
+    .form-group { margin-bottom: 20px; }
+    select {
+      width: 100%; background: #2b2b2b; border: 1px solid #444; color: #fff;
+      border-radius: 8px; padding: 12px; font-size: 16px; outline: none; margin-bottom: 10px;
+    }
+    select:focus { border-color: var(--accent); }
+    
+    .input-group { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+    .input-wrapper { display: flex; flex-direction: column; align-items: center; width: 60px; }
+    .input-wrapper label { margin-bottom: 6px; font-weight: bold; color: var(--muted); font-size: 0.85rem; }
+    input {
+      width: 100%; background: #2b2b2b; border: 1px solid #444; color: #fff;
+      border-radius: 8px; padding: 10px 0; font-size: 18px; text-align: center; outline: none; transition: border-color 0.3s ease;
+    }
+    input:focus { border-color: var(--accent); }
+    
+    .main-btn {
+      display: block; width: 100%; background: var(--accent); color: #fff;
+      border: none; border-radius: 8px; padding: 14px; font-size: 16px; font-weight: 700;
+      cursor: pointer; margin-bottom: 20px; transition: background 0.2s;
+    }
+    .main-btn:hover { background: #b71c1c; }
+    
+    /* Стили визуального стола */
+    #visual-table-container {
+      position: relative; width: 320px; height: 320px; margin: 30px auto;
+      border-radius: 50%; background-color: #1a1a1a; border: 3px solid #333;
+    }
+    .player-seat {
+      position: absolute; width: 44px; height: 44px; top: 50%; left: 50%;
+      margin-top: -22px; margin-left: -22px; background-color: #2b2b2b;
+      border: 2px solid var(--line); border-radius: 50%; display: flex;
+      justify-content: center; align-items: center; font-weight: bold; color: #fff;
+      transition: all 0.3s ease; box-sizing: border-box; cursor: pointer; user-select: none;
+    }
+    .player-seat.is-dead { background-color: #0a0a0a !important; border-color: #1a1a1a !important; color: #555 !important; box-shadow: none !important; }
+    .player-seat.is-me { box-shadow: 0 0 0 4px rgba(255,255,255,0.2) !important; border-color: #fff !important; }
+
+    /* Анимация пульсации для мишеней голосования */
+    @keyframes pulse-nominee {
+      0% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.7); }
+      70% { box-shadow: 0 0 0 12px rgba(211, 47, 47, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0); }
+    }
+    .is-nominee-target {
+      border: 2px solid var(--accent) !important;
+      animation: pulse-nominee 1.5s infinite;
+      z-index: 5;
+    }
+
+    #result { background: #191919; border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-height: 100px; }
+    .result-title { font-weight: bold; color: var(--accent); margin-bottom: 12px; text-align: center; }
+    .error { color: #ff5252; font-weight: bold; text-align: center; margin-bottom: 10px; }
+    .success { color: var(--success); font-weight: bold; text-align: center; font-size: 1.2rem; margin-bottom: 10px; }
+    .split-row { display: flex; justify-content: space-between; margin-bottom: 8px; padding: 8px; background: #2b2b2b; border-radius: 6px; }
+    .nominee { font-weight: bold; width: 120px; }
+    .voters { flex: 1; text-align: right; color: #bbb; }
+    
+    .explanation-box {
+      margin-top: 15px; padding: 12px; background: rgba(33, 150, 243, 0.1);
+      border-left: 4px solid var(--info); border-radius: 0 6px 6px 0;
+      color: #ccc; font-size: 0.9rem; line-height: 1.4;
+    }
+
+    /* Модальное окно при входе */
+    #welcome-modal {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85);
+      display: flex; justify-content: center; align-items: center; z-index: 1000;
+    }
+    .modal-content {
+      background: var(--card); border: 1px solid var(--line); padding: 30px;
+      border-radius: 12px; max-width: 400px; width: 90%; text-align: center;
+    }
+    .modal-btn {
+      display: block; width: 100%; padding: 14px; margin-top: 15px; border: none;
+      border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; color: #fff;
+    }
+    .btn-calc { background: #3a608e; }
+    .btn-train { background: var(--success); }
+    .modal-home-link {
+      display: inline-block;
+      margin-top: 14px;
+      color: var(--muted);
+      text-decoration: none;
+      font-weight: 600;
+      transition: color 0.2s;
+    }
+    .modal-home-link:hover { color: #fff; }
+
+    /* Элементы Тренажёра */
+    #trainer-ui { display: none; background: #222; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #444; }
+    .question-box { font-size: 1.1rem; text-align: center; margin-bottom: 15px; font-weight: bold; }
+    .answer-buttons { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; }
+    .ans-btn { background: #444; color: white; border: 2px solid #555; border-radius: 8px; padding: 10px 20px; font-size: 18px; cursor: pointer; }
+    .ans-btn:hover { background: #555; }
+    
+    /* Красивый свитч (переключатель) */
+    .trainer-manual-controls {
+      display: flex; justify-content: center; align-items: center; gap: 12px;
+      margin-bottom: 20px; background: #1a1a1a; padding: 12px; border-radius: 8px; border: 1px solid #333;
+    }
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #555; transition: .3s; border-radius: 24px;
+    }
+    .slider:before {
+      position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px;
+      background-color: white; transition: .3s; border-radius: 50%;
+    }
+    input:checked + .slider { background-color: var(--success); }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    /* УЛУЧШЕННОЕ ВСПЛЫВАЮЩЕЕ УВЕДОМЛЕНИЕ (TOAST) */
+    #toast-notification {
+      position: fixed;
+      top: 40px; /* Чуть ниже, чтобы не перекрывалось шторкой на телефоне */
+      left: 50%;
+      transform: translateX(-50%) translateY(-60px);
+      padding: 16px 32px; /* Сделали шире и выше */
+      border-radius: 12px;
+      color: #fff;
+      font-weight: 900; /* Максимально жирный шрифт */
+      font-size: 1.4rem; /* Увеличили размер текста */
+      z-index: 9999;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Эффект "выпрыгивания" */
+      box-shadow: 0 8px 24px rgba(0,0,0,0.8); /* Мощная тень для объема */
+      text-align: center;
+      white-space: nowrap;
+      text-transform: uppercase; /* Все буквы заглавные для читаемости */
+      letter-spacing: 1px;
+    }
+    #toast-notification.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+      visibility: visible;
+    }
+    .toast-success { background-color: #2e7d32; border: 2px solid #4caf50; }
+    .toast-error { background-color: #c62828; border: 2px solid #ff5252; }
+
+  </style>
+</head>
+<body>
+
+  <div id="toast-notification"></div>
+
+  <div id="welcome-modal" style="display: none;">
+    <div class="modal-content">
+      <h2 style="margin-top:0; color:var(--accent);">Добро пожаловать</h2>
+      <p style="color:var(--muted); margin-bottom:20px;">Выберите режим работы для текущей сессии.</p>
+      <button class="modal-btn btn-calc" onclick="selectAppMode('calculator')">🧮 Режим Калькулятора</button>
+      <button class="modal-btn btn-train" onclick="selectAppMode('trainer')">🎯 Режим Тренажёра</button>
+      <a class="modal-home-link" href="index.html">← На главную</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="top-controls">
+      <a href="index.html" class="toggle-btn menu-btn">🏠 Меню</a>
+      <div id="mode-indicator" style="font-weight: bold; color: var(--muted);">Режим: Калькулятор</div>
+      <button id="toggle-mode-btn" class="toggle-btn" onclick="toggleAppMode()">Включить Тренажёр</button>
+    </div>
+
+    <h1 id="main-title">⚖️ Калькулятор попилов</h1>
+    <div id="main-desc" class="muted">Нажимайте на игроков за столом, чтобы отмечать их убитыми</div>
+
+    <div class="form-group">
+      <select id="split-mode">
+        <option value="2-10">Классика (2 выставленных, 10 живых)</option>
+        <option value="3-10">Попил 3-х при 10-и (4 кандидатуры)</option>
+        <option value="5-10">Попил 5-х при 10-и (Все в попиле)</option>
+        <option value="3-9">Попил при 9-х (3 выставленных)</option>
+      </select>
+    </div>
+
+    <div class="input-group" id="dynamic-inputs"></div>
+
+    <div id="calculator-ui">
+      <button id="calc-btn" class="main-btn">Рассчитать рассадку</button>
+    </div>
+
+    <div id="trainer-ui">
+      <div style="margin-bottom: 20px; text-align: center;">
+        <label style="color:var(--muted); font-weight:bold;">Моё место за столом:</label>
+        <select id="trainer-my-seat" style="width: 80px; display: inline-block; margin-left: 10px; margin-bottom: 0;">
+          <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+          <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+          <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+          <option value="10">10</option>
+        </select>
+      </div>
+
+      <div class="trainer-manual-controls">
+        <span style="color: var(--text); font-size: 0.95rem;">Ручной ввод номинантов</span>
+        <label class="switch">
+          <input type="checkbox" id="manual-toggle-checkbox" onchange="toggleTrainerManual()">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div id="trainer-action-area" style="text-align: center;">
+        <div class="muted" style="margin-bottom: 10px; font-size: 0.95rem;">или кликните по номеру вашего места за столом</div>
+        <button id="generate-btn" class="main-btn" style="background: var(--success); margin-bottom: 0;">Сгенерировать ситуацию</button>
+      </div>
+      
+      <div id="trainer-active-area" style="display: none;">
+        <div class="question-box" id="trainer-question">На голосовании: ... Ваш голос?</div>
+        <div class="answer-buttons" id="trainer-answers"></div>
+      </div>
+    </div>
+
+    <div id="visual-table-container">
+      <div class="player-seat" data-seat-number="1">1</div>
+      <div class="player-seat" data-seat-number="2">2</div>
+      <div class="player-seat" data-seat-number="3">3</div>
+      <div class="player-seat" data-seat-number="4">4</div>
+      <div class="player-seat" data-seat-number="5">5</div>
+      <div class="player-seat" data-seat-number="6">6</div>
+      <div class="player-seat" data-seat-number="7">7</div>
+      <div class="player-seat" data-seat-number="8">8</div>
+      <div class="player-seat" data-seat-number="9">9</div>
+      <div class="player-seat" data-seat-number="10">10</div>
+    </div>
+
+    <div id="result">
+      <div class="muted" style="margin: 0;">Здесь появится результат...</div>
+    </div>
+  </div>
+
+  <script>
+    const colors = ['#8e3a3a', '#3a608e', '#417a4a', '#997a3d', '#74478c'];
+    const modesConfig = {
+      '2-10': { labels: ['Игрок А', 'Игрок Б'], reqAlive: 10 },
+      '3-10': { labels: ['Канд. 1', 'Канд. 2', 'Канд. 3', 'Канд. 4'], reqAlive: 10 },
+      '5-10': { labels: ['Канд. 1', 'Канд. 2', 'Канд. 3', 'Канд. 4', 'Канд. 5'], reqAlive: 10 },
+      '3-9':  { labels: ['Канд. 1', 'Канд. 2', 'Канд. 3'], reqAlive: 9 }
+    };
+
+    let appMode = 'calculator'; 
+    let isTrainerManual = false; 
+    let isTrainingActive = false;
+    let deadPlayers = new Set();
+    const seats = document.querySelectorAll('.player-seat');
+    const selectMode = document.getElementById('split-mode');
+    const inputsContainer = document.getElementById('dynamic-inputs');
+    let currentTrainerData = null; 
+
+    // Переменная для таймера всплывающего окна
+    let toastTimeout = null;
+
+    // --- Функция показа всплывающего окна (Toast) ---
+    function showToast(message, type) {
+      const toast = document.getElementById('toast-notification');
+      
+      if (toastTimeout) {
+        clearTimeout(toastTimeout);
+        toast.className = ''; 
+      }
+
+      toast.textContent = message;
+      
+      setTimeout(() => {
+        toast.className = 'show ' + (type === 'success' ? 'toast-success' : 'toast-error');
+      }, 10);
+
+      // Изменил время с 1000 на 2000 мс (2 секунды)
+      toastTimeout = setTimeout(() => {
+        toast.className = '';
+      }, 2000);
+    }
+
+    // --- Управление режимом приложения ---
+    window.onload = () => {
+      const savedMode = sessionStorage.getItem('sportmafia_split_mode');
+      if (!savedMode) { document.getElementById('welcome-modal').style.display = 'flex'; } 
+      else { applyAppMode(savedMode); }
+    };
+
+    function selectAppMode(mode) {
+      sessionStorage.setItem('sportmafia_split_mode', mode);
+      document.getElementById('welcome-modal').style.display = 'none';
+      applyAppMode(mode);
+    }
+
+    function toggleAppMode() {
+      const newMode = (appMode === 'calculator') ? 'trainer' : 'calculator';
+      sessionStorage.setItem('sportmafia_split_mode', newMode);
+      applyAppMode(newMode);
+    }
+
+    function toggleTrainerManual() {
+      isTrainerManual = document.getElementById('manual-toggle-checkbox').checked;
+      isTrainingActive = false; 
+      
+      document.getElementById('trainer-active-area').style.display = 'none';
+      document.getElementById('trainer-action-area').style.display = 'block';
+      document.getElementById('result').innerHTML = '<div class="muted" style="margin: 0;">Здесь появится результат...</div>';
+      currentTrainerData = null;
+
+      clearVisuals();
+      const mySeat = parseInt(document.getElementById('trainer-my-seat').value);
+      const mySeatEl = document.querySelector(`.player-seat[data-seat-number="${mySeat}"]`);
+      if (mySeatEl) mySeatEl.classList.add('is-me');
+
+      if (isTrainerManual) {
+        document.getElementById('generate-btn').textContent = 'Начать тренировку с этими номерами';
+        renderInputs();
+      } else {
+        document.getElementById('generate-btn').textContent = 'Сгенерировать ситуацию';
+        renderInputs();
+        generateTrainerSituation();
+      }
+    }
+
+    function applyAppMode(mode) {
+      appMode = mode;
+      isTrainingActive = false;
+      const toggleBtn = document.getElementById('toggle-mode-btn');
+      const modeInd = document.getElementById('mode-indicator');
+      
+      clearVisuals();
+      deadPlayers.clear();
+      document.getElementById('result').innerHTML = '';
+      
+      if (mode === 'trainer') {
+        document.getElementById('calculator-ui').style.display = 'none';
+        document.getElementById('trainer-ui').style.display = 'block';
+        document.getElementById('main-title').textContent = '🎯 Тренажёр попилов';
+        document.getElementById('main-desc').innerHTML = 'Выберите тип попила. Стол сгенерируется сам, или включите ручной ввод.';
+        toggleBtn.textContent = 'Вернуться в Калькулятор';
+        toggleBtn.classList.add('active-trainer');
+        modeInd.textContent = 'Режим: Тренажёр';
+        modeInd.style.color = 'var(--success)';
+        
+        document.getElementById('trainer-active-area').style.display = 'none';
+        document.getElementById('trainer-action-area').style.display = 'block';
+        if (!isTrainerManual) document.getElementById('generate-btn').textContent = 'Сгенерировать ситуацию';
+      } else {
+        document.getElementById('calculator-ui').style.display = 'block';
+        document.getElementById('trainer-ui').style.display = 'none';
+        document.getElementById('main-title').textContent = '⚖️ Калькулятор попилов';
+        document.getElementById('main-desc').textContent = 'Вводите номера вручную или кликайте по столу (чтобы убить игрока).';
+        toggleBtn.textContent = 'Включить Тренажёр';
+        toggleBtn.classList.remove('active-trainer');
+        modeInd.textContent = 'Режим: Калькулятор';
+        modeInd.style.color = 'var(--muted)';
+      }
+      renderInputs();
+    }
+
+    // --- Визуализация стола и КЛИКИ ---
+    function flashInputError(inputEl) {
+      inputEl.style.borderColor = '#ff5252';
+      setTimeout(() => inputEl.style.borderColor = '', 400);
+    }
+
+    const seatAngles = { 1: 18, 2: 54, 3: 90, 4: 126, 5: 162, 6: 198, 7: 234, 8: 270, 9: 306, 10: 342 };
+    seats.forEach((seat) => {
+      const num = parseInt(seat.dataset.seatNumber);
+      seat.style.transform = `rotate(${seatAngles[num]}deg) translateY(-140px) rotate(${-seatAngles[num]}deg)`;
+      
+      seat.addEventListener('click', () => {
+        if (appMode === 'trainer') {
+          
+          if (isTrainingActive) {
+            if (currentTrainerData && currentTrainerData.nominees.includes(num)) {
+              answerTrainer(num);
+            } else {
+              document.getElementById('result').innerHTML = `<div class="error">Игрок ${num} не выставлен! Голосуйте по подсвеченным мишеням.</div>`;
+            }
+            return;
+          }
+
+          const currentMySeat = parseInt(document.getElementById('trainer-my-seat').value);
+          if (num === currentMySeat) return; 
+          
+          if (confirm(`Хотите пересесть на место ${num}?`)) {
+            document.getElementById('trainer-my-seat').value = num;
+            document.querySelectorAll('.player-seat').forEach(s => s.classList.remove('is-me'));
+            seat.classList.add('is-me');
+            
+            if (!isTrainerManual) generateTrainerSituation();
+          }
+          return;
+        }
+
+        if (deadPlayers.has(num)) {
+          deadPlayers.delete(num);
+          seat.classList.remove('is-dead');
+        } else {
+          deadPlayers.add(num);
+          seat.classList.add('is-dead');
+          document.querySelectorAll('.input-wrapper input').forEach(inp => {
+            if (parseInt(inp.value) === num) {
+              inp.value = '';
+              flashInputError(inp);
+            }
+          });
+        }
+      });
+    });
+
+    function handleInput(e) {
+      if (e.key === 'Backspace' || e.key === 'Tab' || e.key.startsWith('Arrow')) return;
+      e.preventDefault();
+      
+      const input = e.target;
+      let newVal = '';
+      if (e.key >= '1' && e.key <= '9') newVal = e.key;
+      else if (e.key === '0') newVal = '10';
+      else return;
+
+      const num = parseInt(newVal);
+      if (deadPlayers.has(num)) { flashInputError(input); return; }
+
+      let isDuplicate = false;
+      document.querySelectorAll('.input-wrapper input').forEach(inp => {
+        if (inp !== input && parseInt(inp.value) === num) isDuplicate = true;
+      });
+      if (isDuplicate) { flashInputError(input); return; }
+
+      input.value = newVal;
+    }
+
+    function renderInputs() {
+      if (appMode === 'trainer' && !isTrainerManual) {
+        inputsContainer.style.display = 'none';
+        return;
+      }
+      
+      inputsContainer.style.display = 'flex';
+      const config = modesConfig[selectMode.value];
+      inputsContainer.innerHTML = '';
+      
+      config.labels.forEach((label, index) => {
+        const div = document.createElement('div');
+        div.className = 'input-wrapper';
+        div.innerHTML = `<label>${label}</label><input type="tel" inputmode="numeric" id="input-${index}" placeholder="-">`;
+        inputsContainer.appendChild(div);
+      });
+
+      config.labels.forEach((_, index) => {
+        document.getElementById(`input-${index}`).addEventListener('keydown', handleInput);
+      });
+    }
+
+    let isPrompting = false;
+    selectMode.addEventListener('change', () => {
+      if (isPrompting) return;
+      const config = modesConfig[selectMode.value];
+
+      deadPlayers.clear();
+      clearVisuals();
+      isTrainingActive = false;
+      document.getElementById('result').innerHTML = '';
+
+      if (appMode === 'trainer') {
+        document.getElementById('trainer-active-area').style.display = 'none';
+        document.getElementById('trainer-action-area').style.display = 'block';
+        if (!isTrainerManual) {
+           generateTrainerSituation(); 
+           return; 
+        }
+      }
+
+      if (config.reqAlive === 9) {
+        isPrompting = true;
+        setTimeout(() => {
+          let ans = prompt("Для попила 9-х нужно указать убитого игрока.\nВведите номер (от 1 до 10):");
+          let deadNum = parseInt(ans);
+          while (ans !== null && (isNaN(deadNum) || deadNum < 1 || deadNum > 10)) {
+            ans = prompt("Некорректный номер!\nВведите номер убитого от 1 до 10:");
+            deadNum = parseInt(ans);
+          }
+          if (ans === null) {
+            selectMode.value = '2-10';
+            isPrompting = false;
+            selectMode.dispatchEvent(new Event('change'));
+            return;
+          }
+          deadPlayers.add(deadNum);
+          document.querySelector(`.player-seat[data-seat-number="${deadNum}"]`).classList.add('is-dead');
+          isPrompting = false;
+          renderInputs();
+        }, 10);
+        return;
+      }
+      renderInputs();
+    });
+
+    function clearVisuals() {
+      seats.forEach(seat => {
+        seat.style.backgroundColor = '';
+        seat.style.borderColor = '';
+        seat.style.boxShadow = '';
+        seat.classList.remove('is-dead', 'is-me', 'is-nominee-target');
+      });
+      deadPlayers.forEach(num => {
+        document.querySelector(`.player-seat[data-seat-number="${num}"]`).classList.add('is-dead');
+      });
+    }
+
+    // --- ЛОГИКА РАСЧЕТА С ОБЪЯСНЕНИЯМИ ---
+    function getSplitData(mode, inputsArray) {
+      let resultsData = [];
+      let conditionText = "";
+      let explanation = "";
+      const table = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+      if (mode === '2-10') {
+        const valA = inputsArray[0]; const valB = inputsArray[1];
+        const half1 = [1, 2, 3, 4, 5], half2 = [6, 7, 8, 9, 10];
+        const aInHalf1 = half1.includes(valA), bInHalf1 = half1.includes(valB);
+        let vA = [], vB = [];
+
+        if (aInHalf1 !== bInHalf1) {
+          conditionText = "Игроки на разных половинах стола";
+          explanation = `💡 Игроки ${valA} и ${valB} находятся на разных половинах стола (1-5 и 6-10). Поэтому стол делится строго пополам: игроки первой половины голосуют в того, кто находится во второй, и наоборот.`;
+          vA = aInHalf1 ? half2.slice() : half1.slice();
+          vB = aInHalf1 ? half1.slice() : half2.slice();
+        } else {
+          conditionText = "Игроки на одной половине стола (кольцевой сдвиг)";
+          let first = valA < valB ? valA : valB;
+          let second = valA < valB ? valB : valA;
+          explanation = `💡 Игроки ${valA} и ${valB} находятся на одной половине стола. Применяется кольцевой сдвиг: 5 игроков, сидящих по кругу сразу после первой выставленной кандидатуры (${first}), голосуют в неё. Остальные 5 человек — во вторую (${second}).`;
+          
+          if (valA < valB) {
+            let startIndex = table.indexOf(valA) + 1;
+            for (let i = 0; i < 5; i++) vA.push(table[(startIndex + i) % 10]);
+          } else {
+            let startIndex = table.indexOf(valA) - 1;
+            for (let i = 0; i < 5; i++) vA.push(table[(startIndex - i + 10) % 10]);
+          }
+          vB = table.filter(p => !vA.includes(p));
+        }
+        resultsData = [
+          { nominee: valA, voters: vA, colorIdx: 0 },
+          { nominee: valB, voters: vB, colorIdx: 1 }
+        ];
+      } 
+      else if (mode === '3-10') {
+        conditionText = "Попил: 3-е при 10-и живых";
+        explanation = `💡 Стандартный попил 3-х: стол жестко делится на тройки. 1-2-3 голосуют в первую кандидатуру, 4-5-6 — во вторую, 7-8-9 — в третью. 10-й игрок страхует и скидывает голос в 4-ю (запасную) кандидатуру.`;
+        resultsData = [
+          { nominee: inputsArray[0], voters: [1, 2, 3], colorIdx: 0 },
+          { nominee: inputsArray[1], voters: [4, 5, 6], colorIdx: 1 },
+          { nominee: inputsArray[2], voters: [7, 8, 9], colorIdx: 2 },
+          { nominee: inputsArray[3], voters: [10], colorIdx: 3 }
+        ];
+      }
+      else if (mode === '5-10') {
+        conditionText = "Попил: 5 при 10-и живых (по осям)";
+        explanation = `💡 Попил 5-х: стол жестко делится по параллельным осям (1-10, 2-9, 3-8, 4-7, 5-6). Каждый выставленный забирает свою ось. Если его ось уже забрал другой номинант, ему отдается любая оставшаяся свободная ось.`;
+        let pairs = [ [1, 10], [2, 9], [3, 8], [4, 7], [5, 6] ];
+        let nominees = [...inputsArray].sort((a, b) => a - b);
+        let assignments = {};
+        let unassigned = [];
+
+        nominees.forEach(nom => {
+          let foundIndex = pairs.findIndex(p => p.includes(nom));
+          if (foundIndex !== -1) {
+            assignments[nom] = pairs[foundIndex];
+            pairs.splice(foundIndex, 1);
+          } else unassigned.push(nom);
+        });
+        unassigned.forEach(nom => assignments[nom] = pairs.shift());
+
+        resultsData = nominees.map((nom, idx) => ({ nominee: nom, voters: assignments[nom], colorIdx: idx }));
+      }
+      else if (mode === '3-9') {
+        conditionText = "Попил: 3-е при 9-и живых";
+        explanation = `💡 Попил 3-х при 9 живых: все трое выставленных игроков голосуют в первую кандидатуру. Из оставшихся 6-ти (невыставленных) игроков первые трое по кругу голосуют во вторую, а последние трое — в третью.`;
+        let alive = table.filter(x => !deadPlayers.has(x));
+        let others = alive.filter(x => !inputsArray.includes(x)).sort((a,b) => a - b);
+        resultsData = [
+          { nominee: inputsArray[0], voters: inputsArray.slice(), colorIdx: 0 },
+          { nominee: inputsArray[1], voters: others.slice(0, 3), colorIdx: 1 },
+          { nominee: inputsArray[2], voters: others.slice(3, 6), colorIdx: 2 }
+        ];
+      }
+      return { conditionText, resultsData, explanation };
+    }
+
+    function renderResultsToScreen(data) {
+      const resultDiv = document.getElementById('result');
+      let html = `<div class="result-title">${data.conditionText}</div>`;
+      
+      data.resultsData.forEach(r => {
+        r.voters.sort((a,b) => a - b);
+        const col = colors[r.colorIdx];
+        html += `
+          <div class="split-row" style="border-left: 4px solid ${col};">
+            <div class="nominee">В Игрока ${r.nominee}:</div>
+            <div class="voters">${r.voters.join(', ')}</div>
+          </div>
+        `;
+        r.voters.forEach(vNum => {
+          const seat = document.querySelector(`.player-seat[data-seat-number="${vNum}"]`);
+          if (seat && !deadPlayers.has(vNum)) {
+            seat.style.backgroundColor = col;
+            seat.style.borderColor = col;
+          }
+        });
+        const nomSeat = document.querySelector(`.player-seat[data-seat-number="${r.nominee}"]`);
+        if (nomSeat) {
+          nomSeat.style.borderColor = '#ffffff';
+          nomSeat.style.borderWidth = '2px';
+          nomSeat.style.boxShadow = `0 0 10px ${col}`;
+        }
+      });
+
+      html += `<div class="explanation-box">${data.explanation}</div>`;
+      resultDiv.innerHTML = html;
+    }
+
+    // --- КНОПКА КАЛЬКУЛЯТОРА ---
+    document.getElementById('calc-btn').addEventListener('click', () => {
+      const mode = selectMode.value;
+      const config = modesConfig[mode];
+      clearVisuals();
+
+      let inputs = [];
+      for (let i = 0; i < config.labels.length; i++) {
+        let val = parseInt(document.getElementById(`input-${i}`).value);
+        if (isNaN(val)) { document.getElementById('result').innerHTML = '<div class="error">Заполните все поля!</div>'; return; }
+        inputs.push(val);
+      }
+
+      const aliveCount = 10 - deadPlayers.size;
+      if (aliveCount !== config.reqAlive) {
+        document.getElementById('result').innerHTML = `<div class="error">Нужно ${config.reqAlive} живых игроков.</div>`;
+        return;
+      }
+      const data = getSplitData(mode, inputs);
+      renderResultsToScreen(data);
+    });
+
+    // --- ЛОГИКА ТРЕНАЖЁРА ---
+    function getRandomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+    
+    function generateTrainerSituation() {
+      const mode = selectMode.value;
+      const config = modesConfig[mode];
+      const mySeat = parseInt(document.getElementById('trainer-my-seat').value);
+      
+      let inputsArray = [];
+      if (isTrainerManual) {
+        for (let i = 0; i < config.labels.length; i++) {
+          let val = parseInt(document.getElementById(`input-${i}`).value);
+          if (isNaN(val)) { 
+            document.getElementById('result').innerHTML = '<div class="error">Заполните все поля номинантов!</div>'; 
+            return; 
+          }
+          inputsArray.push(val);
+        }
+        
+        const aliveCount = 10 - deadPlayers.size;
+        if (aliveCount !== config.reqAlive) {
+          document.getElementById('result').innerHTML = `<div class="error">Нужно ${config.reqAlive} живых игроков.</div>`;
+          return;
+        }
+      }
+
+      deadPlayers.clear();
+      clearVisuals();
+      document.getElementById('result').innerHTML = '';
+
+      if (config.reqAlive === 9) {
+        if (!isTrainerManual) {
+          let deadCandidate = getRandomInt(1, 10);
+          while (deadCandidate === mySeat) { deadCandidate = getRandomInt(1, 10); } 
+          deadPlayers.add(deadCandidate);
+        } else {
+          document.querySelectorAll('.player-seat.is-dead').forEach(s => {
+            deadPlayers.add(parseInt(s.dataset.seatNumber));
+          });
+        }
+      }
+      
+      clearVisuals(); 
+      document.querySelector(`.player-seat[data-seat-number="${mySeat}"]`).classList.add('is-me');
+
+      if (!isTrainerManual) {
+        let numInputs = config.labels.length;
+        let availableForNomination = [1,2,3,4,5,6,7,8,9,10].filter(x => !deadPlayers.has(x));
+        
+        for (let i = availableForNomination.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [availableForNomination[i], availableForNomination[j]] = [availableForNomination[j], availableForNomination[i]];
+        }
+        inputsArray = availableForNomination.slice(0, numInputs);
+      }
+
+      const logicData = getSplitData(mode, inputsArray);
+      
+      let correctNominee = null;
+      logicData.resultsData.forEach(r => {
+        if (r.voters.includes(mySeat)) correctNominee = r.nominee;
+      });
+      
+      currentTrainerData = {
+        correctNominee: correctNominee,
+        logicData: logicData,
+        mySeat: mySeat,
+        nominees: inputsArray
+      };
+
+      // Включаем активный режим
+      isTrainingActive = true;
+
+      // Подсвечиваем мишени на столе
+      inputsArray.forEach(nom => {
+        const seat = document.querySelector(`.player-seat[data-seat-number="${nom}"]`);
+        if (seat) seat.classList.add('is-nominee-target');
+      });
+
+      document.getElementById('trainer-action-area').style.display = 'none';
+      document.getElementById('trainer-active-area').style.display = 'block';
+      document.getElementById('trainer-question').innerHTML = `Выставлены: <span style="color:var(--accent)">${inputsArray.join(', ')}</span>.<br>Вы игрок <span style="text-decoration:underline;">${mySeat}</span>. За кого вы голосуете?<br><span style="font-size:0.85rem; color:var(--muted); font-weight:normal;">Нажмите на кнопку ниже или на пульсирующую мишень на столе</span>`;
+      
+      const answersDiv = document.getElementById('trainer-answers');
+      answersDiv.innerHTML = '';
+      inputsArray.forEach(nom => {
+        const btn = document.createElement('button');
+        btn.className = 'ans-btn';
+        btn.textContent = `Игрок ${nom}`;
+        btn.onclick = () => answerTrainer(nom);
+        answersDiv.appendChild(btn);
+      });
+    }
+
+    document.getElementById('generate-btn').addEventListener('click', generateTrainerSituation);
+
+    function answerTrainer(selectedNominee) {
+      isTrainingActive = false; 
+      
+      document.querySelectorAll('.is-nominee-target').forEach(el => el.classList.remove('is-nominee-target'));
+
+      const resultDiv = document.getElementById('result');
+      const correct = currentTrainerData.correctNominee;
+
+      if (selectedNominee === correct) {
+        resultDiv.innerHTML = `<div class="success">✅ Правильно! Вы голосуете в ${correct}.</div>`;
+        showToast("✅ ПРАВИЛЬНО!", "success"); // Вызов крупного TOAST
+      } else {
+        resultDiv.innerHTML = `<div class="error" style="font-size: 1.2rem; margin-bottom: 10px;">❌ Ошибка! Вы должны были голосовать в ${correct}.</div>`;
+        showToast("❌ НЕТ! СМОТРИТЕ ОБЪЯСНЕНИЕ ВНИЗУ", "error"); // Вызов крупного TOAST
+      }
+
+      renderResultsToScreen(currentTrainerData.logicData);
+
+      document.getElementById('trainer-active-area').style.display = 'none';
+      document.getElementById('generate-btn').textContent = isTrainerManual ? 'Начать тренировку с этими номерами' : 'Следующая ситуация';
+      document.getElementById('trainer-action-area').style.display = 'block';
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SportMafia — Admin Panel</title>
+  <style>
+    :root {
+      --bg: #0d0d10; --panel: #1a1a1e; --card: #222226;
+      --text: #e0e0e0; --muted: #888; --border: #333;
+      --accent: #3498db; --green: #27ae60; --red: #c3073f;
+      --gold: #f1c40f; --purple: #8a6aca;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 20px; }
+
+    h1 { color: var(--gold); text-align: center; margin-bottom: 20px; font-size: 1.5em; }
+
+    /* Auth */
+    .auth-box {
+      max-width: 380px; margin: 80px auto; background: var(--panel);
+      border: 1px solid var(--border); border-radius: 14px; padding: 30px; text-align: center;
+    }
+    .auth-box h2 { color: var(--gold); margin-bottom: 14px; }
+    .auth-box input {
+      width: 100%; padding: 12px; margin: 8px 0; background: #111;
+      border: 1px solid #444; color: #fff; border-radius: 8px; font-size: 1em;
+      text-align: center; outline: none;
+    }
+    .auth-box input:focus { border-color: var(--accent); }
+    .auth-box button {
+      width: 100%; padding: 12px; background: var(--accent); color: #fff;
+      border: none; border-radius: 8px; font-size: 1em; font-weight: 700;
+      cursor: pointer; margin-top: 10px;
+    }
+    .auth-box button:hover { filter: brightness(1.15); }
+
+    /* Content */
+    .admin-wrap { display: none; max-width: 1020px; margin: 0 auto; }
+    .admin-wrap.visible { display: block; }
+
+    /* Toolbar */
+    .toolbar {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 14px; flex-wrap: wrap; gap: 10px;
+    }
+    .toolbar span { color: var(--muted); }
+    .refresh-btn {
+      padding: 8px 18px; background: #333; color: #bbb; border: 1px solid #555;
+      border-radius: 8px; cursor: pointer; font-weight: 700; font-size: .85em;
+    }
+    .refresh-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* Room cards */
+    .rooms-grid { display: flex; flex-direction: column; gap: 14px; }
+    .room-card {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 14px; padding: 16px;
+    }
+    .room-hdr {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 12px; flex-wrap: wrap; gap: 8px;
+    }
+    .room-hdr h3 { color: var(--gold); font-size: 1em; }
+    .badge {
+      padding: 3px 10px; border-radius: 10px; font-size: .75em; font-weight: 700;
+    }
+    .badge-active { background: #0f2a0f; color: var(--green); border: 1px solid var(--green); }
+    .badge-lobby  { background: #2a2a10; color: var(--gold); border: 1px solid var(--gold); }
+    .badge-over   { background: #2a1020; color: var(--red); border: 1px solid var(--red); }
+
+    /* Players chips */
+    .players-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .chip {
+      background: var(--card); border: 1px solid #444; border-radius: 8px;
+      padding: 4px 10px; font-size: .8em; display: flex; align-items: center; gap: 6px;
+    }
+    .chip.dead { opacity: .5; text-decoration: line-through; }
+    .kill-btn {
+      background: var(--red); color: #fff; border: none; border-radius: 4px;
+      padding: 2px 6px; cursor: pointer; font-size: .7em; font-weight: 700;
+    }
+    .kill-btn:hover { filter: brightness(1.2); }
+
+    /* Action buttons */
+    .admin-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+    .adm-btn {
+      padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--card); color: var(--text); font-weight: 700; cursor: pointer;
+      font-size: .85em; transition: all .2s;
+    }
+    .adm-btn:hover { background: #333; border-color: var(--accent); }
+    .adm-btn.danger { border-color: var(--red); color: var(--red); }
+    .adm-btn.danger:hover { background: var(--red); color: #fff; }
+
+    /* Announce row */
+    .announce-row { display: flex; gap: 8px; margin-top: 10px; }
+    .announce-row input {
+      flex: 1; background: #111; border: 1px solid #444; color: #fff;
+      border-radius: 8px; padding: 8px 12px; font-size: .85em; outline: none;
+    }
+    .announce-row input:focus { border-color: var(--accent); }
+    .announce-row button {
+      padding: 8px 18px; background: var(--accent); color: #fff; border: none;
+      border-radius: 8px; font-weight: 700; cursor: pointer;
+    }
+
+    /* History */
+    .history-section {
+      margin-top: 30px; background: var(--panel); border: 1px solid var(--border);
+      border-radius: 14px; padding: 16px;
+    }
+    .history-section h3 { color: var(--gold); margin-bottom: 12px; }
+    .hist-table { width: 100%; border-collapse: collapse; }
+    .hist-table th {
+      text-align: left; color: var(--muted); font-size: .75em; padding: 6px 8px;
+      border-bottom: 1px solid #333; text-transform: uppercase;
+    }
+    .hist-table td { padding: 6px 8px; border-bottom: 1px solid #222; font-size: .85em; }
+    .hist-table tr:hover td { background: rgba(255,255,255,.02); }
+
+    .no-data { color: #555; text-align: center; padding: 20px; }
+
+    .toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: #333; color: #fff; padding: 10px 24px; border-radius: 10px;
+      font-size: .9em; z-index: 2000; display: none; box-shadow: 0 4px 14px rgba(0,0,0,.5);
+    }
+    .toast.show { display: block; animation: fadeUp .3s; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+  </style>
+</head>
+<body>
+
+  <!-- Auth Gate -->
+  <div class="auth-box" id="auth-box">
+    <h2>🔐 Admin Panel</h2>
+    <p style="color:var(--muted); font-size:.9em; margin-bottom:12px;">Введите пароль администратора</p>
+    <input type="password" id="pwd-input" placeholder="Пароль..." autofocus
+           onkeydown="if(event.key==='Enter')doAuth()">
+    <button onclick="doAuth()">Войти</button>
+  </div>
+
+  <!-- Admin Content -->
+  <div class="admin-wrap" id="admin-wrap">
+    <h1>🎛️ SportMafia — God Mode</h1>
+
+    <div class="toolbar">
+      <span>Активные комнаты</span>
+      <button class="refresh-btn" onclick="loadRooms()">🔄 Обновить</button>
+    </div>
+
+    <div class="rooms-grid" id="rooms-grid">
+      <p class="no-data">Загрузка...</p>
+    </div>
+
+    <div class="history-section">
+      <h3>📜 История матчей</h3>
+      <table class="hist-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Победитель</th>
+            <th>Причина</th>
+            <th>Игроки</th>
+            <th>Дней</th>
+            <th>Дата</th>
+          </tr>
+        </thead>
+        <tbody id="hist-body">
+          <tr><td colspan="6" class="no-data">Загрузка...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+  <script src="/config.env.js"></script>
+  <script>
+    let adminPwd = '';
+    let socket   = null;
+    let autoRefresh = null;
+
+    function doAuth() {
+      adminPwd = document.getElementById('pwd-input').value.trim();
+      if (!adminPwd) return;
+      document.getElementById('auth-box').style.display = 'none';
+      document.getElementById('admin-wrap').classList.add('visible');
+      socket = io();
+      socket.on('connect', () => {
+        console.log('[Admin] Connected');
+        loadRooms();
+        loadHistory();
+      });
+      autoRefresh = setInterval(loadRooms, 5000);
+    }
+
+    // ── Load rooms ──
+    async function loadRooms() {
+      try {
+        const res = await apiFetch('/api/admin/rooms');
+        const data = await res.json();
+        renderRooms(data.rooms || []);
+      } catch (e) {
+        console.error('loadRooms:', e);
+      }
+    }
+
+    // ── Load history ──
+    async function loadHistory() {
+      try {
+        const res = await apiFetch('/api/match-history');
+        const data = await res.json();
+        renderHistory(data.matches || []);
+      } catch (e) {
+        console.error('loadHistory:', e);
+      }
+    }
+
+    // ── Render rooms ──
+    function renderRooms(rooms) {
+      const grid = document.getElementById('rooms-grid');
+      if (!rooms.length) { grid.innerHTML = '<p class="no-data">Нет активных комнат</p>'; return; }
+      grid.innerHTML = '';
+      rooms.forEach(room => {
+        const card = document.createElement('div');
+        card.className = 'room-card';
+
+        const isActive = room.phase === 'active_game';
+        const isOver   = room.phase === 'game_over';
+        const bClass   = isOver ? 'badge-over' : isActive ? 'badge-active' : 'badge-lobby';
+        const bText    = isOver ? '🏆 Завершена' : isActive ? `⚔️ ${room.gamePhase || 'playing'}` : `📋 ${room.phase}`;
+
+        const roleIcon = r => ({ don:'🎩', mafia:'🔫', sheriff:'⭐', citizen:'👤' }[r] || '❓');
+
+        let chips = '';
+        (room.players || []).forEach(p => {
+          const dead = p.status && p.status !== 'alive';
+          chips += `<div class="chip${dead ? ' dead' : ''}">
+            #${p.seat||'?'} ${esc(p.nickname||'Anon')} ${roleIcon(p.role)}
+            ${!dead ? `<button class="kill-btn" onclick="adminKill('${room.roomId}','${p.id}')">☠️</button>` : ''}
+          </div>`;
+        });
+
+        card.innerHTML = `
+          <div class="room-hdr">
+            <h3>🏠 ${esc(room.roomId)}</h3>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <span class="badge ${bClass}">${bText}</span>
+              <span style="color:var(--muted);font-size:.8em;">👥 ${room.playerCount} | День ${room.dayNumber}</span>
+            </div>
+          </div>
+          <div class="players-chips">${chips}</div>
+          <div class="admin-btns">
+            <button class="adm-btn" onclick="adminSkip('${room.roomId}')">⏩ Пропустить фазу</button>
+            <button class="adm-btn" onclick="adminStopTimer('${room.roomId}')">⏸ Стоп таймер</button>
+            <button class="adm-btn" onclick="adminStartTimer('${room.roomId}')">▶ Старт таймер</button>
+            <button class="adm-btn" onclick="adminRestart('${room.roomId}')">🔄 Рестарт</button>
+          </div>
+          <div class="announce-row">
+            <input id="ann-${room.roomId}" placeholder="Объявление от ведущего..." maxlength="500">
+            <button onclick="adminAnnounce('${room.roomId}')">📢 Отправить</button>
+          </div>`;
+
+        grid.appendChild(card);
+      });
+    }
+
+    // ── Render history ──
+    function renderHistory(matches) {
+      const tbody = document.getElementById('hist-body');
+      if (!matches.length) { tbody.innerHTML = '<tr><td colspan="6" class="no-data">Нет истории</td></tr>'; return; }
+      tbody.innerHTML = '';
+      matches.forEach(m => {
+        const tr = document.createElement('tr');
+        const dt = m.created_at ? new Date(m.created_at).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+        const wIcon = m.winner === 'city' ? '🏙️' : '🔫';
+        tr.innerHTML = `
+          <td style="font-weight:700;color:var(--gold);">${esc((m.match_id||'').substring(0,10))}</td>
+          <td>${wIcon} ${esc(m.winner||'?')}</td>
+          <td style="color:var(--muted);">${esc(m.win_reason||'')}</td>
+          <td>${m.total_players||0}</td>
+          <td>${m.duration_days||0}</td>
+          <td style="color:var(--muted);">${dt}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ── Admin actions via socket ──
+    function adminAction(action, roomId, extra) {
+      if (!socket) return;
+      socket.emit('admin:action', { password: adminPwd, roomId, action, ...extra }, res => {
+        if (res && res.error) showToast('❌ ' + res.error);
+        else { showToast('✅ Выполнено'); loadRooms(); }
+      });
+    }
+
+    function adminKill(roomId, playerId) {
+      if (!confirm('Убить этого игрока?')) return;
+      adminAction('kill_player', roomId, { playerId });
+    }
+
+    function adminSkip(roomId) { adminAction('skip_phase', roomId); }
+    function adminStopTimer(roomId) { adminAction('stop_timer', roomId); }
+    function adminRestart(roomId) { adminAction('restart_room', roomId); }
+
+    function adminStartTimer(roomId) {
+      const dur = parseInt(prompt('Длительность (секунд):', '60')) || 60;
+      adminAction('start_timer', roomId, { duration: dur });
+    }
+
+    function adminAnnounce(roomId) {
+      const inp = document.getElementById('ann-' + roomId);
+      const msg = inp ? inp.value.trim() : '';
+      if (!msg) return;
+      adminAction('announcement', roomId, { message: msg });
+      if (inp) inp.value = '';
+    }
+
+    // ── Helpers ──
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      if (!t) return;
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(t._t);
+      t._t = setTimeout(() => t.classList.remove('show'), 3000);
+    }
+  </script>
+</body>
+</html>

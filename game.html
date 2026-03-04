@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SportMafia — Игровой стол</title>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --panel: #1a1d24;
+      --card: #22252e;
+      --border: #2d3040;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --accent: #3b82f6;
+      --green: #22c55e;
+      --red: #ef4444;
+      --gold: #f59e0b;
+      --purple: #8b5cf6;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px;
+    }
+
+    /* ── Top Bar ── */
+    .top-bar {
+      width: 100%; max-width: 860px;
+      background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+      padding: 10px 18px; display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 12px; flex-wrap: wrap; gap: 8px;
+    }
+    .top-bar .left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .room-id-badge { background: #111; border: 1px solid var(--gold); color: var(--gold); padding: 3px 12px; border-radius: 6px; font-weight: 700; font-size: .85em; letter-spacing: 1px; }
+    .phase-badge { padding: 4px 14px; border-radius: 20px; font-weight: 700; font-size: .82em; display: inline-flex; align-items: center; gap: 4px; }
+    .phase-speeches  { background: #172554; color: #60a5fa; border: 1px solid #2563eb; }
+    .phase-voting    { background: #422006; color: var(--gold); border: 1px solid var(--gold); }
+    .phase-shooting, .phase-night { background: #450a0a; color: #fca5a5; border: 1px solid var(--red); }
+    .phase-game_over { background: #052e16; color: var(--green); border: 1px solid var(--green); }
+    .phase-waiting   { background: #1e1b4b; color: #a5b4fc; border: 1px solid #6366f1; }
+    .day-label { color: var(--muted); font-size: .85em; }
+    .back-btn { color: var(--muted); text-decoration: none; font-size: .85em; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; transition: all .2s; }
+    .back-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+    /* ── Oval Table ── */
+    .table-wrap { position: relative; width: 100%; max-width: 780px; height: 460px; margin: 8px auto 12px; }
+    .table-oval {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 48%; height: 50%;
+      background: radial-gradient(ellipse, #1a2e1a 0%, #0f1a0f 100%);
+      border: 3px solid #2a4a2a; border-radius: 50%;
+      box-shadow: 0 0 50px rgba(34,197,94,.08), inset 0 0 30px rgba(0,0,0,.5);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    .table-center-label { color: #3a5a3a; font-size: .95em; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; }
+    .table-center-day   { color: #4a6a4a; font-size: .75em; margin-top: 2px; }
+
+    /* ── Seats ── */
+    .seat {
+      position: absolute; width: 84px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+      transform: translate(-50%, -50%); transition: all .25s;
+    }
+    .seat-circle {
+      width: 50px; height: 50px; border-radius: 50%; border: 3px solid var(--border);
+      background: #1a1d24; display: flex; align-items: center; justify-content: center;
+      font-size: 1.2em; font-weight: 700; color: var(--muted); transition: all .25s; position: relative; cursor: default;
+    }
+    .seat.occupied .seat-circle { border-color: var(--accent); background: #172554; color: #fff; }
+    .seat.is-me .seat-circle    { border-color: var(--gold); background: #422006; color: var(--gold); box-shadow: 0 0 14px rgba(245,158,11,.25); }
+    .seat.dead .seat-circle     { border-color: #333; background: #1a1010; color: #555; opacity: .55; }
+    .seat.dead .seat-circle::after { content: '✕'; position: absolute; font-size: 1.7em; color: var(--red); opacity: .65; }
+    .seat.npc .seat-circle      { border-color: var(--purple); background: #1e1b4b; color: #a78bfa; border-style: dashed; }
+    .seat.empty .seat-circle    { border-color: #222; background: var(--bg); color: #333; border-style: dashed; }
+    .seat.speaking .seat-circle { border-color: var(--green); box-shadow: 0 0 18px rgba(34,197,94,.4); animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100% { box-shadow: 0 0 10px rgba(34,197,94,.25); } 50% { box-shadow: 0 0 22px rgba(34,197,94,.55); } }
+
+    .seat-name {
+      font-size: .68em; color: #94a3b8; text-align: center; max-width: 84px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600;
+    }
+    .seat.is-me .seat-name { color: var(--gold); }
+    .seat.dead .seat-name  { color: #555; text-decoration: line-through; }
+    .seat.npc .seat-name   { color: #a78bfa; font-style: italic; }
+
+    /* Partner (mafia visibility) */
+    .seat.is-partner .seat-circle { border-color: #dc2626; box-shadow: 0 0 12px rgba(220,38,38,.35); }
+    .partner-badge {
+      position: absolute; top: -4px; right: -4px;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--red); color: #fff; font-size: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; z-index: 2;
+    }
+
+    .seat-role-tag {
+      font-size: .58em; padding: 1px 7px; border-radius: 8px; display: none;
+      background: var(--card); color: var(--muted);
+    }
+    .seat.is-me .seat-role-tag { display: block; }
+    .seat-role-tag.role-don     { background: #2a1a1a; color: #fca5a5; }
+    .seat-role-tag.role-mafia   { background: #1f1f1f; color: #d4d4d4; }
+    .seat-role-tag.role-sheriff { background: #422006; color: var(--gold); }
+    .seat-role-tag.role-citizen { background: #172554; color: #60a5fa; }
+
+    /* ── Action Panel ── */
+    .action-panel {
+      width: 100%; max-width: 860px; background: var(--panel);
+      border: 1px solid var(--border); border-radius: 14px; padding: 16px 20px;
+      margin-bottom: 12px;
+    }
+    .action-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .action-header h3 { color: var(--gold); font-size: 1em; }
+    .rules-tag { font-size: .72em; color: var(--muted); background: var(--card); padding: 3px 10px; border-radius: 6px; border: 1px solid var(--border); }
+
+    /* Speech */
+    .speech-box { text-align: center; padding: 12px; }
+    .speaker-name { font-size: 1.3em; font-weight: 700; color: var(--green); }
+    .speech-progress { color: var(--muted); font-size: .85em; margin-top: 4px; }
+    .btn-primary {
+      background: var(--accent); color: #fff; border: none; border-radius: 10px;
+      padding: 12px 32px; font-size: 1em; font-weight: 700; cursor: pointer;
+      margin-top: 12px; transition: all .2s;
+    }
+    .btn-primary:hover { filter: brightness(1.15); }
+    .btn-primary:disabled { opacity: .35; cursor: not-allowed; }
+    .btn-danger { background: var(--red); }
+
+    /* Voting / Shooting grids */
+    .action-grid { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 12px 0; }
+    .action-btn {
+      padding: 10px 16px; border-radius: 10px; border: 2px solid var(--border);
+      background: var(--card); color: var(--text); font-weight: 700; font-size: .88em;
+      cursor: pointer; transition: all .2s; min-width: 82px; text-align: center;
+    }
+    .action-btn:hover:not(:disabled) { border-color: var(--gold); background: #2a2510; }
+    .action-btn:disabled { opacity: .35; cursor: not-allowed; }
+    .action-btn.selected { border-color: var(--gold); background: #422006; color: var(--gold); box-shadow: 0 0 10px rgba(245,158,11,.15); }
+    .action-btn.skip-btn { border-color: #333; color: var(--muted); }
+    .action-btn.skip-btn:hover { border-color: var(--muted); }
+    .action-btn.shoot-btn { border-color: var(--red); background: #1a0a0a; }
+    .action-btn.shoot-btn:hover:not(:disabled) { background: #2a1015; box-shadow: 0 0 10px rgba(239,68,68,.2); }
+    .action-btn.shoot-btn.selected { border-color: var(--red); background: var(--red); color: #fff; }
+    .action-btn.check-btn { border-color: var(--gold); background: #1a1a0a; }
+    .action-status { text-align: center; color: var(--muted); font-size: .85em; margin-top: 8px; }
+
+    /* Check result */
+    .check-result { text-align: center; padding: 14px; font-size: 1.15em; font-weight: 700; border-radius: 10px; margin: 10px 0; }
+    .check-black { background: #2a1020; color: #fca5a5; border: 1px solid var(--red); }
+    .check-red   { background: #0f2a0f; color: var(--green); border: 1px solid var(--green); }
+
+    /* Game Over */
+    .game-over-box { text-align: center; padding: 20px; animation: fadeUp .5s; }
+    .game-over-box h2 { font-size: 1.5em; margin-bottom: 8px; }
+    .winner-city  { color: var(--green); }
+    .winner-mafia { color: var(--red); }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; } }
+
+    /* Players info table */
+    .info-panel { width: 100%; max-width: 860px; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 14px 18px; margin-bottom: 12px; }
+    .info-panel h3 { color: var(--gold); margin-bottom: 8px; font-size: .95em; }
+    .ptable { width: 100%; border-collapse: collapse; }
+    .ptable th { text-align: left; color: var(--muted); font-size: .72em; padding: 4px 8px; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: .05em; }
+    .ptable td { padding: 5px 8px; border-bottom: 1px solid #1a1d24; font-size: .85em; }
+    .ptable tr.me   { background: #27250e; }
+    .ptable tr.me td { color: var(--gold); font-weight: 700; }
+    .ptable tr.dead  { opacity: .45; }
+    .ptable tr.dead td { text-decoration: line-through; }
+    .ptable tr.npc   { background: #15132e; }
+    .ptable tr.npc td { color: #a78bfa; font-style: italic; }
+    .status-pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: .72em; font-weight: 700; }
+    .status-alive { background: #052e16; color: var(--green); }
+    .status-dead  { background: #450a0a; color: #fca5a5; }
+
+    /* Loading */
+    .loading { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 999; }
+    .loading.hidden { display: none; }
+    .spinner { width: 48px; height: 48px; border: 4px solid #222; border-top-color: var(--gold); border-radius: 50%; animation: spin .7s linear infinite; margin-bottom: 18px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { color: var(--muted); font-size: 1.05em; }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--card); color: #fff; padding: 10px 22px; border-radius: 10px; font-size: .88em; z-index: 2000; display: none; box-shadow: 0 6px 20px rgba(0,0,0,.5); border: 1px solid var(--border); }
+    .toast.show { display: block; animation: fadeUp .3s; }
+
+    /* Speech Timer */
+    .timer-container {
+      width: 100%; max-width: 860px; display: flex;
+      align-items: center; justify-content: center; gap: 10px;
+      margin-bottom: 8px;
+    }
+    .timer-display {
+      font-size: 1.8em; font-weight: 800; font-variant-numeric: tabular-nums;
+      color: var(--green); min-width: 60px; text-align: center;
+      background: var(--panel); border: 2px solid var(--border); border-radius: 12px;
+      padding: 6px 18px; transition: all .3s;
+    }
+    .timer-display.timer-warning {
+      color: var(--red); border-color: var(--red);
+      animation: timer-pulse 1s infinite;
+    }
+    @keyframes timer-pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+    .timer-label { color: var(--muted); font-size: .82em; }
+
+    /* Toto Notification */
+    .toto-notification {
+      position: fixed; top: 20px; right: 20px; z-index: 3000;
+      background: linear-gradient(135deg, #0f2a0f 0%, #1a3a1a 100%);
+      border: 2px solid var(--green); border-radius: 14px;
+      padding: 14px 22px; color: var(--green); font-weight: 700;
+      box-shadow: 0 8px 30px rgba(34,197,94,.25);
+      animation: toto-slide-in .4s ease-out;
+      max-width: 320px;
+    }
+    .toto-notification .toto-amount { font-size: 1.4em; color: var(--gold); }
+    .toto-notification .toto-details { font-size: .8em; color: var(--muted); margin-top: 4px; }
+    @keyframes toto-slide-in { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* ── Mafia Night Chat ── */
+    .mafia-chat {
+      width: 100%; max-width: 860px; background: #1a0a10;
+      border: 2px solid #3a1030; border-radius: 14px; padding: 12px 16px;
+      margin-bottom: 12px; display: none;
+    }
+    .mafia-chat.visible { display: block; animation: fadeUp .3s; }
+    .mafia-chat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .mafia-chat-header h4 { color: var(--red); font-size: .9em; margin: 0; }
+    .mafia-chat-msgs {
+      max-height: 140px; overflow-y: auto; background: #111; border-radius: 8px;
+      padding: 8px; margin-bottom: 8px; font-size: .8em;
+    }
+    .mafia-chat-msgs::-webkit-scrollbar { width: 4px; }
+    .mafia-chat-msgs::-webkit-scrollbar-thumb { background: #3a1030; border-radius: 2px; }
+    .mafia-msg { padding: 3px 0; border-bottom: 1px solid #1a1d24; color: #ccc; }
+    .mafia-msg .msg-sender { color: var(--red); font-weight: 700; font-size: .85em; }
+    .mafia-msg .msg-time { color: #555; font-size: .7em; margin-left: 6px; }
+    .mafia-chat-bar { display: flex; gap: 6px; }
+    .mafia-chat-bar input {
+      flex: 1; background: #222; border: 1px solid #3a1030; color: #fff;
+      border-radius: 6px; padding: 7px 10px; font-size: .85em; outline: none;
+    }
+    .mafia-chat-bar input:focus { border-color: var(--red); }
+    .mafia-chat-bar button {
+      background: var(--red); color: #fff; border: none; border-radius: 6px;
+      padding: 7px 14px; cursor: pointer; font-weight: 700; font-size: .85em;
+    }
+    .mafia-chat-bar button:hover { filter: brightness(1.15); }
+
+    /* ── Don check result ── */
+    .check-sheriff  { background: #2a2a10; color: var(--gold); border: 1px solid var(--gold); }
+    .check-notsheriff { background: #222; color: #888; border: 1px solid #444; }
+
+    /* ── Toto confetti + shake ── */
+    @keyframes balanceShake {
+      0%,100% { transform: translateX(0); }
+      15%,55%,85% { transform: translateX(-4px); }
+      35%,75% { transform: translateX(4px); }
+    }
+    .toto-notification.win-flash { border-color: var(--gold); }
+    .toto-notification .toto-amount.shake { animation: balanceShake .6s ease; }
+
+    /* ── Admin Announcement ── */
+    .admin-announce {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      background: linear-gradient(135deg, #0a1a3a, #102a5a); border: 2px solid var(--accent);
+      border-radius: 16px; padding: 28px 36px; color: #fff; z-index: 4000;
+      text-align: center; box-shadow: 0 10px 40px rgba(52,152,219,.35);
+      animation: fadeUp .4s; max-width: 480px; width: 90%;
+    }
+    .admin-announce h3 { color: var(--accent); margin-bottom: 10px; font-size: 1.1em; }
+    .admin-announce p { color: #ccc; font-size: 1em; line-height: 1.5; }
+    .admin-announce .close-btn {
+      margin-top: 16px; background: var(--accent); color: #fff; border: none;
+      border-radius: 8px; padding: 8px 22px; cursor: pointer; font-weight: 700;
+    }
+    .admin-announce .close-btn:hover { filter: brightness(1.15); }
+
+    @media (max-width: 600px) {
+      .table-wrap { height: 360px; }
+      .seat-circle { width: 40px; height: 40px; font-size: 1em; }
+      .seat-name { font-size: .6em; max-width: 62px; }
+      .seat { width: 66px; }
+      .table-oval { width: 42%; height: 44%; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-text">Подключение к столу...</div>
+  </div>
+
+  <!-- Top bar -->
+  <div class="top-bar">
+    <div class="left">
+      <span class="room-id-badge" id="room-badge">---</span>
+      <span class="phase-badge phase-waiting" id="phase-badge">⏳ Ожидание</span>
+      <span class="day-label" id="day-label">День 1</span>
+    </div>
+    <a href="/lobby" class="back-btn">← Лобби</a>
+  </div>
+
+  <!-- Timer -->
+  <div class="timer-container" id="timer-container" style="display:none;">
+    <span class="timer-label">⏱ Речь:</span>
+    <span class="timer-display" id="timer-display">60</span>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap" id="table-wrap">
+    <div class="table-oval">
+      <span class="table-center-label">SportMafia</span>
+      <span class="table-center-day" id="center-day">День 1</span>
+    </div>
+  </div>
+
+  <!-- Action panel -->
+  <div class="action-panel" id="action-panel">
+    <div class="action-header">
+      <h3 id="action-title">⏳ Ожидание начала...</h3>
+      <span class="rules-tag" id="rules-tag">—</span>
+    </div>
+    <div id="action-content">
+      <p style="color:var(--muted); text-align:center;">Игра начнётся автоматически</p>
+    </div>
+  </div>
+
+  <!-- Mafia Night Chat -->
+  <div class="mafia-chat" id="mafia-chat">
+    <div class="mafia-chat-header">
+      <h4>🌙 Чат Мафии</h4>
+      <span style="color:#555; font-size:.7em;">Только для чёрной команды</span>
+    </div>
+    <div class="mafia-chat-msgs" id="mafia-chat-msgs"></div>
+    <div class="mafia-chat-bar">
+      <input type="text" id="mafia-chat-input" placeholder="Написать напарникам..." maxlength="200"
+             onkeydown="if(event.key==='Enter')sendMafiaMsg()">
+      <button onclick="sendMafiaMsg()">→</button>
+    </div>
+  </div>
+
+  <!-- Players list -->
+  <div class="info-panel">
+    <h3>📋 Игроки</h3>
+    <table class="ptable">
+      <thead><tr><th>#</th><th>Никнейм</th><th>Статус</th></tr></thead>
+      <tbody id="ptable-body"><tr><td colspan="3" style="color:var(--muted); text-align:center;">Загрузка...</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script>
+    const FIREBASE_CONFIG = {
+      apiKey: "AIzaSyCNpkZoUMVbWP7769VrtBP7pzGQEgR3cig",
+      authDomain: "sportmafiaapp.firebaseapp.com",
+      databaseURL: "https://sportmafiaapp-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "sportmafiaapp",
+      storageBucket: "sportmafiaapp.firebasestorage.app",
+      messagingSenderId: "858820837278",
+      appId: "1:858820837278:web:066665961df6187bdd608f",
+      measurementId: "G-DBX7LGYHPW"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+  </script>
+
+  <!-- Socket.IO -->
+  <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+  <script src="/config.env.js"></script>
+
+  <script>
+    // ═══════════════════════════════════════════
+    //  State
+    // ═══════════════════════════════════════════
+    let socket       = null;
+    let myPlayerId   = null;
+    let myRole       = null;
+    let myPartners   = [];  // партнёры мафии
+    let snapshot     = null;
+    let myVote       = null;
+    let myShot       = null;
+    let checkResult  = null;
+    let donCheckResult = null;
+    let timerValue   = null;
+    let mafiaMessages = [];
+
+    const $ = id => document.getElementById(id);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomId    = urlParams.get('roomId');
+
+    if (!roomId) {
+      showError('Не указан ID комнаты', 'Вернитесь в лобби.');
+    } else {
+      boot();
+    }
+
+    // ═══════════════════════════════════════════
+    //  Boot
+    // ═══════════════════════════════════════════
+    async function boot() {
+      try {
+        // Dual-mode: try Firebase auth first, fall back to hostless mode
+        let connectOpts;
+        const isHostless = sessionStorage.getItem('hostless_roomId') === roomId;
+
+        if (isHostless) {
+          // Hostless mode — no Firebase auth needed
+          console.log('[Game] Hostless mode — connecting without Firebase auth');
+          connectOpts = { auth: { hostless: true } };
+        } else {
+          // Normal mode — Firebase auth
+          const auth = firebase.auth();
+          let user = auth.currentUser;
+          if (!user) { const c = await auth.signInAnonymously(); user = c.user; }
+          const token = await user.getIdToken(true);
+          connectOpts = { auth: { token } };
+        }
+
+        const apiBase = (window.__APP_CONFIG__ && window.__APP_CONFIG__.API_BASE) || '';
+        socket = apiBase ? io(apiBase, connectOpts) : io(connectOpts);
+
+        socket.on('connect', () => {
+          console.log('[Game] connected', socket.id);
+          socket.emit('game:joinTable', { roomId }, res => {
+            if (!res.success) return showError('Ошибка подключения', res.error);
+
+            snapshot = res.snapshot;
+            myPlayerId = res.playerId;
+
+            $('loading').classList.add('hidden');
+            $('room-badge').textContent = snapshot.roomId || roomId;
+            render();
+          });
+        });
+
+        socket.on('connect_error', err => showError('Ошибка подключения', err.message));
+
+        socket.on('game:your_role', data => {
+          myRole = data.role;
+          myPartners = data.partners || [];
+          console.log('[Game] My role:', myRole, 'Partners:', myPartners);
+          if (snapshot) render();
+        });
+
+        socket.on('room:updated', snap => {
+          snapshot = snap;
+          render();
+        });
+
+        socket.on('game:phase_changed', data => {
+          myVote = null;
+          myShot = null;
+          checkResult = null;
+          donCheckResult = null;
+          timerValue = null;
+          if (snapshot) {
+            snapshot.gamePhase    = data.gamePhase;
+            snapshot.dayNumber    = data.dayNumber || snapshot.dayNumber;
+            snapshot.currentSpeaker = data.speaker ?? snapshot.currentSpeaker;
+            snapshot.speechOrder  = data.speechOrder || snapshot.speechOrder;
+            snapshot.speechIndex  = data.speechIndex ?? snapshot.speechIndex;
+            if (data.rules) snapshot.gameRules = data.rules;
+          }
+          render();
+        });
+
+        socket.on('game:vote_cast', data => {
+          toast(`Голос принят (${data.totalVotes}/${data.requiredVotes})`);
+        });
+
+        socket.on('game:vote_result', data => {
+          toast('Голосование завершено — никто не покидает стол');
+        });
+
+        socket.on('game:player_eliminated', data => {
+          const name = playerName(data.playerId);
+          const how = data.reason === 'vote' ? 'голосованием' : 'ночью';
+          toast(`💀 ${name} устранён ${how}`);
+        });
+
+        socket.on('game:night_action', data => {
+          toast(`Ночное действие (${data.actionsCount}/${data.requiredActions})`);
+        });
+
+        socket.on('game:night_result', data => {
+          if (data.result === 'miss') toast('Ночь: промах!');
+        });
+
+        socket.on('game:check_result', data => {
+          checkResult = data;
+          renderActions();
+        });
+
+        socket.on('game:don_check_result', data => {
+          donCheckResult = data;
+          renderActions();
+        });
+
+        // Mafia Night Chat
+        socket.on('game:mafia_msg', data => {
+          mafiaMessages.push(data);
+          if (mafiaMessages.length > 100) mafiaMessages.shift();
+          renderMafiaChat();
+        });
+
+        // Admin announcement
+        socket.on('admin:announcement', data => {
+          showAdminAnnouncement(data.message);
+        });
+
+        socket.on('admin:player_killed', data => {
+          toast(`☠️ Админ убил: ${data.nickname || data.playerId}`);
+        });
+
+        socket.on('game:over', data => {
+          snapshot = data.snapshot;
+          timerValue = null;
+          updateTimerVisibility();
+          updateMafiaChatVisibility();
+          render();
+          const w = data.winner === 'city' ? '🏙️ ГОРОД' : '🔫 МАФИЯ';
+          toast(`Игра окончена! Победа: ${w}`);
+        });
+
+        // Таймер речей
+        socket.on('game:timer_tick', data => {
+          timerValue = data.remaining;
+          updateTimerDisplay(data.remaining, data.total);
+        });
+
+        // Тото: выплаты
+        socket.on('toto:payout', data => {
+          showTotoNotification(data);
+          if (data.payout > 0) fireGoldConfetti();
+        });
+
+        socket.on('toto:win', data => {
+          showTotoNotification(data);
+          fireGoldConfetti();
+        });
+
+        socket.on('toto:game_result', data => {
+          const w = data.winner === 'city' ? '🏙️ Город' : '🔫 Мафия';
+          toast(`🎰 Тото: победа ${w}`);
+        });
+
+        socket.on('game:ready_to_play', data => {
+          if (data.snapshot) snapshot = data.snapshot;
+          render();
+        });
+
+        socket.on('disconnect', () => {
+          $('phase-badge').textContent = '⚡ Disconnected';
+          $('phase-badge').className = 'phase-badge phase-waiting';
+        });
+
+      } catch (err) {
+        showError('Ошибка', err.message);
+      }
+    }
+
+    // ═══════════════════════════════════════════
+    //  Render
+    // ═══════════════════════════════════════════
+    function render() {
+      if (!snapshot) return;
+      renderTable();
+      renderPTable();
+      renderActions();
+      updateTimerVisibility();
+      updateMafiaChatVisibility();
+    }
+
+    // ── Seat positions around ellipse ──
+    function seatPositions(n) {
+      const pos = [];
+      for (let i = 0; i < n; i++) {
+        const a = (-90 + (360 / n) * i) * (Math.PI / 180);
+        pos.push({ x: 50 + 44 * Math.cos(a), y: 50 + 43 * Math.sin(a) });
+      }
+      return pos;
+    }
+
+    function renderTable() {
+      const wrap    = $('table-wrap');
+      const players = snapshot.players || [];
+      const gp      = snapshot.gamePhase || 'waiting';
+      const day     = snapshot.dayNumber || 1;
+
+      updateTopBar();
+
+      // Seat map
+      const seatMap = {};
+      let maxSeat = snapshot.maxPlayers || 10;
+      players.forEach(p => { if (p.seat) { seatMap[p.seat] = p; if (p.seat > maxSeat) maxSeat = p.seat; } });
+
+      // Clear old seats
+      wrap.querySelectorAll('.seat').forEach(el => el.remove());
+
+      const positions = seatPositions(maxSeat);
+      const centerDay = $('center-day');
+      if (centerDay) centerDay.textContent = `День ${day}`;
+
+      for (let i = 1; i <= maxSeat; i++) {
+        const pos = positions[i - 1];
+        const p   = seatMap[i] || null;
+        const isMe   = p && p.id === myPlayerId;
+        const alive  = p && p.status === 'alive';
+        const dead   = p && p.status && p.status !== 'alive';
+        const npc    = p && p.isNpc;
+        const speaks = p && snapshot.currentSpeaker === p.id && gp === 'speeches';
+        const isPartner = p && myPartners.some(mp => mp.id === p.id);
+
+        const el = document.createElement('div');
+        el.className = 'seat';
+        if (p) {
+          el.classList.add('occupied');
+          if (isMe)      el.classList.add('is-me');
+          if (dead)      el.classList.add('dead');
+          if (npc)       el.classList.add('npc');
+          if (speaks)    el.classList.add('speaking');
+          if (isPartner) el.classList.add('is-partner');
+        } else {
+          el.classList.add('empty');
+        }
+        el.style.left = pos.x + '%';
+        el.style.top  = pos.y + '%';
+
+        const circle = document.createElement('div');
+        circle.className = 'seat-circle';
+        circle.textContent = i;
+        if (isPartner) {
+          const badge = document.createElement('div');
+          badge.className = 'partner-badge';
+          badge.textContent = '🔗';
+          circle.appendChild(badge);
+        }
+        el.appendChild(circle);
+
+        const name = document.createElement('div');
+        name.className = 'seat-name';
+        name.textContent = p ? (isMe ? `${p.nickname} (вы)` : p.nickname) : '';
+        el.appendChild(name);
+
+        if (isMe && myRole) {
+          const tag = document.createElement('div');
+          tag.className = 'seat-role-tag role-' + myRole;
+          tag.textContent = roleName(myRole);
+          el.appendChild(tag);
+        }
+
+        wrap.appendChild(el);
+      }
+    }
+
+    function updateTopBar() {
+      const gp  = snapshot.gamePhase || snapshot.phase || 'waiting';
+      const day = snapshot.dayNumber || 1;
+      $('day-label').textContent = `День ${day}`;
+
+      const badge = $('phase-badge');
+      badge.className = 'phase-badge';
+      const map = {
+        speeches:  ['🗣️ Речи',        'phase-speeches'],
+        voting:    ['🗳️ Голосование',  'phase-voting'],
+        shooting:  ['🔫 Стрельба',     'phase-shooting'],
+        night:     ['🌙 Ночь',         'phase-night'],
+        game_over: ['🏆 Конец игры',   'phase-game_over'],
+        waiting:   ['⏳ Ожидание',     'phase-waiting'],
+        lobby:     ['⏳ Лобби',        'phase-waiting'],
+        roles:     ['🎭 Роли',         'phase-waiting'],
+        active_game: ['🎮 В игре',     'phase-speeches'],
+      };
+      const [text, cls] = map[gp] || ['⏳ ' + gp, 'phase-waiting'];
+      badge.textContent = text;
+      badge.classList.add(cls);
+    }
+
+    // ═══════════════════════════════════════════
+    //  Action Panel
+    // ═══════════════════════════════════════════
+    function renderActions() {
+      if (!snapshot) return;
+      const gp    = snapshot.gamePhase || 'waiting';
+      const rules = snapshot.gameRules;
+      const title = $('action-title');
+      const area  = $('action-content');
+      const rtag  = $('rules-tag');
+      if (rules) rtag.textContent = rules.description || '';
+      else rtag.textContent = '';
+
+      if (snapshot.phase === 'game_over' || gp === 'game_over') return renderGameOver();
+
+      switch (gp) {
+        case 'speeches': return renderSpeeches();
+        case 'voting':   return renderVoting();
+        case 'shooting': return renderShooting();
+        case 'night':    return renderNight();
+        default:
+          title.textContent = '⏳ Ожидание начала фазы...';
+          area.innerHTML = '<p style="color:var(--muted); text-align:center;">Игра начнётся автоматически</p>';
+      }
+    }
+
+    function renderSpeeches() {
+      const title = $('action-title');
+      const area  = $('action-content');
+      const order = snapshot.speechOrder || [];
+      const idx   = snapshot.speechIndex || 0;
+      const spk   = snapshot.currentSpeaker;
+      const spkP  = spk ? (snapshot.players || []).find(p => p.id === spk) : null;
+      const isMeSpeaking = spk === myPlayerId;
+
+      title.textContent = '🗣️ Фаза речей';
+      area.innerHTML = `
+        <div class="speech-box">
+          <div class="speaker-name">${isMeSpeaking ? '🎤 ВЫ говорите!' : `🎤 ${spkP ? spkP.nickname : '...'}`}</div>
+          <div class="speech-progress">Речь ${idx + 1} из ${order.length}</div>
+          <button class="btn-primary" onclick="doNextSpeech()" ${isMeSpeaking ? '' : 'disabled'}>
+            ${idx + 1 >= order.length ? '✅ Завершить речи' : '⏩ Завершить мою речь'}
+          </button>
+        </div>`;
+    }
+
+    function renderVoting() {
+      const title = $('action-title');
+      const area  = $('action-content');
+      const alive = (snapshot.players || []).filter(p => p.status === 'alive' && p.id !== myPlayerId && !p.isNpc);
+      const npc   = (snapshot.players || []).find(p => p.isNpc && p.status === 'alive');
+      const meAlive = (snapshot.players || []).find(p => p.id === myPlayerId && p.status === 'alive');
+
+      title.textContent = '🗳️ Голосование';
+
+      let h = '<div class="action-grid">';
+      if (meAlive) {
+        alive.forEach(p => {
+          const sel = myVote === p.id ? ' selected' : '';
+          h += `<button class="action-btn${sel}" onclick="doVote('${p.id}')" ${myVote ? 'disabled' : ''}>#${p.seat} ${p.nickname}</button>`;
+        });
+        if (npc) {
+          const sel = myVote === '__npc__' ? ' selected' : '';
+          h += `<button class="action-btn${sel}" onclick="doVote('__npc__')" ${myVote ? 'disabled' : ''} style="border-color:var(--purple);">#${npc.seat} ${npc.nickname}</button>`;
+        }
+        h += `<button class="action-btn skip-btn${myVote === 'skip' ? ' selected' : ''}" onclick="doVote('skip')" ${myVote ? 'disabled' : ''}>⏭️ Пропуск</button>`;
+      } else {
+        h += '<p style="color:var(--muted);">Вы не можете голосовать</p>';
+      }
+      h += '</div>';
+      h += `<div class="action-status">${myVote ? '✅ Голос принят. Ожидаем остальных...' : 'Выберите, кого отправить'}</div>`;
+      area.innerHTML = h;
+    }
+
+    function renderShooting() {
+      const title = $('action-title');
+      const area  = $('action-content');
+      const isMafia = myRole === 'mafia' || myRole === 'don';
+
+      title.textContent = '🔫 Стрельба';
+      if (!isMafia) {
+        area.innerHTML = '<div style="text-align:center; padding:20px; color:var(--muted);">🌙 Город спит... Ожидайте рассвета.</div>';
+        return;
+      }
+
+      const targets = (snapshot.players || []).filter(p => p.status === 'alive' && p.id !== myPlayerId && !p.isNpc);
+      let h = '<p style="color:var(--red); text-align:center; margin-bottom:10px;">Выберите цель:</p><div class="action-grid">';
+      targets.forEach(p => {
+        const sel = myShot === p.id ? ' selected' : '';
+        h += `<button class="action-btn shoot-btn${sel}" onclick="doShoot('${p.id}')" ${myShot ? 'disabled' : ''}>#${p.seat} ${p.nickname}</button>`;
+      });
+      h += '</div>';
+      h += `<div class="action-status">${myShot ? '🔫 Выстрел сделан' : 'Кого убить?'}</div>`;
+      area.innerHTML = h;
+    }
+
+    function renderNight() {
+      const title = $('action-title');
+      const area  = $('action-content');
+      const isMafia   = myRole === 'mafia' || myRole === 'don';
+      const isSheriff = myRole === 'sheriff';
+
+      title.textContent = '🌙 Ночная фаза';
+      let h = '';
+
+      if (isMafia) {
+        const targets = (snapshot.players || []).filter(p => p.status === 'alive' && p.id !== myPlayerId && !p.isNpc);
+        h += '<p style="color:var(--red); text-align:center; margin-bottom:8px;">🔫 Выберите цель:</p><div class="action-grid">';
+        targets.forEach(p => {
+          const sel = myShot === p.id ? ' selected' : '';
+          h += `<button class="action-btn shoot-btn${sel}" onclick="doShoot('${p.id}')" ${myShot ? 'disabled' : ''}>#${p.seat} ${p.nickname}</button>`;
+        });
+        h += '</div>';
+        if (myShot) h += '<div class="action-status">🔫 Выстрел сделан</div>';
+      }
+
+      // Проверка Дона (ищем Шерифа)
+      if (myRole === 'don') {
+        const targets = (snapshot.players || []).filter(p => p.status === 'alive' && p.id !== myPlayerId && !p.isNpc);
+        h += '<p style="color:#8a6aca; text-align:center; margin:14px 0 8px;">🎩 Проверка Дона (ищем Шерифа):</p><div class="action-grid">';
+        targets.forEach(p => {
+          h += `<button class="action-btn check-btn" style="border-color:#8a6aca; background:#1a1a2a;" onclick="doDonCheck('${p.id}')" ${donCheckResult ? 'disabled' : ''}>#${p.seat} ${p.nickname}</button>`;
+        });
+        h += '</div>';
+        if (donCheckResult) {
+          const isSheriffFound = donCheckResult.result === 'sheriff';
+          h += `<div class="check-result ${isSheriffFound ? 'check-sheriff' : 'check-notsheriff'}">${isSheriffFound ? '✡ ШЕРИФ!' : '❌ НЕ ШЕРИФ'} — ${donCheckResult.targetNickname}</div>`;
+        }
+      }
+
+      if (isSheriff) {
+        const targets = (snapshot.players || []).filter(p => p.status === 'alive' && p.id !== myPlayerId && !p.isNpc);
+        h += '<p style="color:var(--gold); text-align:center; margin:14px 0 8px;">⭐ Проверка шерифа:</p><div class="action-grid">';
+        targets.forEach(p => {
+          h += `<button class="action-btn check-btn" onclick="doCheck('${p.id}')" ${checkResult ? 'disabled' : ''}>#${p.seat} ${p.nickname}</button>`;
+        });
+        h += '</div>';
+        if (checkResult) {
+          const isB = checkResult.result === 'black';
+          h += `<div class="check-result ${isB ? 'check-black' : 'check-red'}">${isB ? '⚫ ЧЁРНЫЙ' : '🔴 КРАСНЫЙ'} — ${checkResult.targetNickname}</div>`;
+        }
+      }
+
+      if (!isMafia && !isSheriff) {
+        h = '<div style="text-align:center; padding:20px; color:var(--muted);">🌙 Город спит... Ожидайте рассвета.</div>';
+      }
+
+      area.innerHTML = h;
+    }
+
+    function renderGameOver() {
+      const title = $('action-title');
+      const area  = $('action-content');
+      const winner = snapshot.winner || 'unknown';
+      const isCity = winner === 'city';
+
+      title.textContent = '🏆 Игра окончена!';
+
+      let reveal = '';
+      (snapshot.players || []).sort((a, b) => (a.seat || 99) - (b.seat || 99)).forEach(p => {
+        const icon = p.status === 'alive' ? '🟢' : '💀';
+        reveal += `<div style="padding:3px 0; border-bottom:1px solid #222;">${icon} #${p.seat} <b>${p.nickname}</b>${p.isNpc ? ' (NPC)' : ''}</div>`;
+      });
+
+      area.innerHTML = `
+        <div class="game-over-box">
+          <h2 class="${isCity ? 'winner-city' : 'winner-mafia'}">Победа: ${isCity ? '🏙️ ГОРОД' : '🔫 МАФИЯ'}</h2>
+          <p style="color:var(--muted);">${snapshot.winReason || ''}</p>
+          <div style="margin-top:14px; text-align:left; background:var(--card); border-radius:10px; padding:12px;">${reveal}</div>
+          <button onclick="doRestartRoom()" style="display:inline-block; margin-top:14px; padding:10px 24px; background:var(--green); color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer; font-size:.95em;">🔄 Играть снова</button>
+          <a href="/lobby" class="back-btn" style="display:inline-block; margin-top:14px; margin-left:10px;">← Вернуться в лобби</a>
+        </div>`;
+    }
+
+    // ═══════════════════════════════════════════
+    //  Players Table
+    // ═══════════════════════════════════════════
+    function renderPTable() {
+      const tb = $('ptable-body');
+      if (!tb) return;
+      tb.innerHTML = '';
+      (snapshot.players || []).sort((a, b) => (a.seat || 99) - (b.seat || 99)).forEach(p => {
+        const isMe  = p.id === myPlayerId;
+        const alive = p.status === 'alive';
+        const dead  = p.status && p.status !== 'alive';
+        const npc   = p.isNpc;
+
+        const tr = document.createElement('tr');
+        if (isMe) tr.classList.add('me');
+        if (dead) tr.classList.add('dead');
+        if (npc)  tr.classList.add('npc');
+
+        tr.innerHTML = `
+          <td style="font-weight:700;">#${p.seat || '?'}</td>
+          <td>${p.nickname}${isMe ? ' (вы)' : ''}${npc ? ' 👻' : ''}</td>
+          <td><span class="status-pill ${alive ? 'status-alive' : 'status-dead'}">${alive ? '🟢 В игре' : '💀 Убит'}</span></td>`;
+        tb.appendChild(tr);
+      });
+    }
+
+    // ═══════════════════════════════════════════
+    //  Actions → Server
+    // ═══════════════════════════════════════════
+    function doNextSpeech() {
+      socket.emit('game:nextSpeech', {}, res => {
+        if (res.error) toast('Ошибка: ' + res.error);
+      });
+    }
+
+    function doVote(targetId) {
+      if (myVote) return;
+      socket.emit('game:vote', { targetId }, res => {
+        if (res.error) return toast('Ошибка: ' + res.error);
+        myVote = targetId;
+        renderActions();
+      });
+    }
+
+    function doShoot(targetId) {
+      if (myShot) return;
+      socket.emit('game:shoot', { targetId }, res => {
+        if (res.error) return toast('Ошибка: ' + res.error);
+        myShot = targetId;
+        renderActions();
+      });
+    }
+
+    function doCheck(targetId) {
+      if (checkResult) return;
+      socket.emit('game:sheriffCheck', { targetId }, res => {
+        if (res.error) toast('Ошибка: ' + res.error);
+      });
+    }
+
+    function doDonCheck(targetId) {
+      if (donCheckResult) return;
+      socket.emit('game:donCheck', { targetId }, res => {
+        if (res.error) toast('Ошибка: ' + res.error);
+      });
+    }
+
+    function doRestartRoom() {
+      socket.emit('game:restartRoom', {}, res => {
+        if (res && res.error) toast('Ошибка: ' + res.error);
+      });
+    }
+
+    // ═══════════════════════════════════════════
+    //  Helpers
+    // ═══════════════════════════════════════════
+    const ROLE_NAMES = { don: '🎩 Дон', mafia: '🔫 Мафия', sheriff: '⭐ Шериф', citizen: '👨‍🌾 Мирный' };
+    function roleName(r) { return ROLE_NAMES[r] || r; }
+
+    function playerName(id) {
+      if (!snapshot || !snapshot.players) return id;
+      const p = snapshot.players.find(pl => pl.id === id);
+      return p ? p.nickname : id;
+    }
+
+    function showError(title, msg) {
+      const el = $('loading');
+      if (el) {
+        el.innerHTML = `<div style="text-align:center; padding:30px;">
+          <h2 style="color:var(--red); margin-bottom:10px;">❌ ${title}</h2>
+          <p style="color:var(--muted); margin-bottom:18px;">${msg || ''}</p>
+          <a href="/lobby" class="back-btn" style="display:inline-block;">← Лобби</a>
+        </div>`;
+        el.classList.remove('hidden');
+      }
+    }
+
+    function toast(msg) {
+      const t = $('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(t._t);
+      t._t = setTimeout(() => t.classList.remove('show'), 3500);
+    }
+
+    // ═══════════════════════════════════════════
+    //  Timer
+    // ═══════════════════════════════════════════
+    function updateTimerDisplay(remaining, total) {
+      const el = $('timer-display');
+      if (!el) return;
+      el.textContent = remaining;
+      if (remaining <= 10) {
+        el.classList.add('timer-warning');
+      } else {
+        el.classList.remove('timer-warning');
+      }
+      updateTimerVisibility();
+    }
+
+    function updateTimerVisibility() {
+      const container = $('timer-container');
+      if (!container) return;
+      const gp = snapshot ? (snapshot.gamePhase || 'waiting') : 'waiting';
+      // Показываем таймер во время речей, голосования, ночи и стрельбы
+      const timerPhases = ['speeches', 'voting', 'night', 'shooting'];
+      container.style.display = (timerPhases.includes(gp) && timerValue !== null) ? 'flex' : 'none';
+    }
+
+    // ═══════════════════════════════════════════
+    //  Toto Notifications
+    // ═══════════════════════════════════════════
+    function showTotoNotification(data) {
+      const el = document.createElement('div');
+      el.className = 'toto-notification' + (data.payout > 0 ? ' win-flash' : '');
+      el.innerHTML = `
+        <div>🎰 ${data.payout > 0 ? 'Угадана роль!' : 'Результат ставки'}</div>
+        <div class="toto-amount${data.payout > 0 ? ' shake' : ''}">${data.payout > 0 ? '+' + data.payout : data.payout} монет</div>
+        <div class="toto-details">Место #${data.seat || '?'} — ${getRoleDisplayName(data.actualRole)} ${data.multiplier ? '(x' + data.multiplier + ')' : ''}</div>
+      `;
+      document.body.appendChild(el);
+      setTimeout(() => {
+        el.style.transition = 'opacity .4s, transform .4s';
+        el.style.opacity = '0';
+        el.style.transform = 'translateX(120%)';
+        setTimeout(() => el.remove(), 500);
+      }, 5500);
+    }
+
+    function getRoleDisplayName(role) {
+      const map = { don: '🎩 Дон', mafia: '🔫 Мафия', sheriff: '⭐ Шериф', citizen: '👨‍🌾 Мирный' };
+      return map[role] || role;
+    }
+
+    // ═══════════════════════════════════════════
+    //  Confetti (Gold)
+    // ═══════════════════════════════════════════
+    function fireGoldConfetti() {
+      if (typeof confetti !== 'function') return;
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 },
+        colors: ['#f1c40f','#f39c12','#e67e22','#ffd700','#fff4a3'], gravity: .8, scalar: 1.2 });
+      setTimeout(() => {
+        confetti({ particleCount: 60, spread: 100, origin: { x: .3, y: .5 }, colors: ['#f1c40f','#ffd700'] });
+        confetti({ particleCount: 60, spread: 100, origin: { x: .7, y: .5 }, colors: ['#f1c40f','#ffd700'] });
+      }, 300);
+    }
+
+    // ═══════════════════════════════════════════
+    //  Mafia Night Chat
+    // ═══════════════════════════════════════════
+    function updateMafiaChatVisibility() {
+      const el = $('mafia-chat');
+      if (!el) return;
+      const isMafia = myRole === 'mafia' || myRole === 'don';
+      const gp = snapshot ? (snapshot.gamePhase || '') : '';
+      const isNightPhase = gp === 'night' || gp === 'shooting';
+      const isGameOver = snapshot && (snapshot.phase === 'game_over' || snapshot.winner);
+      if (isMafia && isNightPhase && !isGameOver) {
+        el.classList.add('visible');
+      } else {
+        el.classList.remove('visible');
+      }
+    }
+
+    function renderMafiaChat() {
+      const box = $('mafia-chat-msgs');
+      if (!box) return;
+      box.innerHTML = '';
+      mafiaMessages.forEach(m => {
+        const d = document.createElement('div');
+        d.className = 'mafia-msg';
+        const t = m.timestamp ? new Date(m.timestamp).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}) : '';
+        d.innerHTML = `<span class="msg-sender">#${m.seat||'?'} ${esc(m.nickname||'???')}:</span> ${esc(m.text)} <span class="msg-time">${t}</span>`;
+        box.appendChild(d);
+      });
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function sendMafiaMsg() {
+      const inp = $('mafia-chat-input');
+      if (!inp) return;
+      const text = inp.value.trim();
+      if (!text) return;
+      inp.value = '';
+      socket.emit('game:mafia_msg', { text }, res => {
+        if (res && res.error) toast('⚠️ ' + res.error);
+      });
+    }
+
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    // ═══════════════════════════════════════════
+    //  Admin Announcement
+    // ═══════════════════════════════════════════
+    function showAdminAnnouncement(message) {
+      const existing = document.querySelector('.admin-announce');
+      if (existing) existing.remove();
+      const el = document.createElement('div');
+      el.className = 'admin-announce';
+      el.innerHTML = `
+        <h3>📢 Объявление от Ведущего</h3>
+        <p>${esc(message)}</p>
+        <button class="close-btn" onclick="this.parentElement.remove()">Понятно</button>`;
+      document.body.appendChild(el);
+      setTimeout(() => { if (el.parentElement) el.remove(); }, 15000);
+    }
+  </script>
+</body>
+</html>

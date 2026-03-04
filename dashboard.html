@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mafia Pro Dashboard</title>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/dist/tmi.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/obs-websocket-js@5.0.2/dist/obs-ws.min.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #121212; 
+            --panel-bg: #1e1e1e;
+            --text-color: #ffffff; 
+            --text-muted: #888888;
+            --border: #333333;
+            --icon-empty: rgba(255, 255, 255, 0.15);
+        }
+        body.theme-light { --bg-color: #e0e5ec; --panel-bg: #ffffff; --text-color: #121212; --text-muted: #666666; --border: #cccccc; --icon-empty: rgba(0, 0, 0, 0.15); }
+        body.mode-night { background-color: #050510; background-image: radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 4px), radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 30px); background-size: 550px 550px, 350px 350px; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Montserrat', sans-serif; background: var(--bg-color); color: var(--text-color); margin: 0; display: flex; height: 100vh; overflow: hidden; transition: background 0.5s; }
+
+        /* Верхняя панель управления */
+        .top-bar { position: absolute; top: 0; left: 0; right: 0; height: 140px; background: var(--panel-bg); border-bottom: 1px solid var(--border); display: flex; flex-direction: column; justify-content: center; padding: 0 20px; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.2); gap: 8px; }
+        .controls-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .controls-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        
+        .btn { background: #333; color: #fff; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-weight: 600; font-family: inherit; transition: 0.2s; font-size: 11px; }
+        .btn:hover { background: #555; }
+        .btn.btn-danger { background: #d32f2f; }
+        .btn.btn-danger:hover { background: #b71c1c; }
+        .btn.btn-active { background: #00e5ff; color: #000; }
+        .btn.btn-epic { background: linear-gradient(45deg, #ff007a, #7a00ff); color: white; border: 1px solid #fff; box-shadow: 0 0 10px rgba(255,0,122,0.5); }
+        .btn.btn-epic:hover { box-shadow: 0 0 20px rgba(255,0,122,0.8); }
+        .btn.btn-gold { background: linear-gradient(45deg, #ffd700, #ffaa00); color: #000; }
+        .btn.btn-obs { background: #302e3b; color: #00e5ff; border: 1px solid #00e5ff; }
+        
+        .stat-badge { background: #2a2a2a; padding: 4px 10px; border-radius: 20px; font-size: 11px; color: #00e5ff; font-weight: bold; }
+        .stat-mafia { color: #ff4d4d; }
+        .stat-citizen { color: #00ff00; }
+        .stat-gold { color: #ffd700; cursor: pointer; }
+
+        /* Основная зона */
+        .main-content { margin-top: 140px; display: flex; width: 100%; height: calc(100vh - 140px); }
+        .grid-area { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; }
+        .grid-container { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(3, 1fr); gap: 15px; width: 100%; height: 100%; transition: all 0.5s; }
+        
+        .grid-container.view-list { display: flex; flex-direction: column; height: auto; gap: 10px; }
+        .grid-container.mini-mode .card-middle, .grid-container.mini-mode .polarity-bar { display: none; }
+        .grid-container.mini-mode .player-card { height: auto; padding: 10px; }
+        .grid-container.mini-mode .mafia-tools { margin-top: 10px; }
+
+        .player-card { background: var(--panel-bg); border-radius: 12px; padding: 15px; display: flex; flex-direction: column; position: relative; border: 2px solid transparent; transition: all 0.3s; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .player-card.dead { opacity: 0.4; filter: grayscale(100%); }
+        .player-card.dead .btn-kill { pointer-events: auto; }
+        .player-card.frozen { border-color: #00e5ff; box-shadow: 0 0 15px rgba(0,229,255,0.5); }
+        .player-card.frozen::after { content: '❄️ Заморожен'; position: absolute; bottom: -10px; right: 10px; font-size: 10px; background: #000; padding: 2px 5px; border-radius: 4px; color: #00e5ff; }
+        
+        .shield-icon { position: absolute; top: -15px; left: -15px; font-size: 24px; display: none; z-index: 10; animation: popIn 0.3s; }
+        .suspect-crown { border-color: #ff0000; box-shadow: 0 0 15px rgba(255,0,0,0.5); animation: pulse-red 2s infinite; }
+        .trusted-crown { border-color: #00ff00; box-shadow: 0 0 15px rgba(0,255,0,0.5); }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 10px rgba(255,0,0,0.3); } 50% { box-shadow: 0 0 25px rgba(255,0,0,0.7); } 100% { box-shadow: 0 0 10px rgba(255,0,0,0.3); } }
+
+        /* Внутрянка карточки */
+        .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; width: 100%; position: relative; }
+        .player-name-input { background: transparent; border: none; border-bottom: 1px solid var(--border); color: var(--text-color); font-family: inherit; font-size: 14px; font-weight: bold; width: 90px; text-align: center; }
+        .btn-kill, .btn-hist, .btn-spotlight { background: transparent; border: none; font-size: 16px; cursor: pointer; padding: 0 3px; }
+        .btn-kill { color: #ff4d4d; line-height: 1; }
+        .btn-hist { color: #00e5ff; }
+        .btn-spotlight { color: #ffd700; }
+        
+        .swing-icon { position: absolute; top: 25px; left: 5px; font-size: 20px; display: none; animation: popIn 0.3s; }
+        @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
+
+        .role-notes { display: none; width: 100%; background: #222; border: 1px solid #444; color: #fff; font-size: 10px; border-radius: 4px; padding: 4px; margin-bottom: 5px; resize: none; height: 35px; }
+        .player-card.is-sheriff .role-notes, .player-card.is-don .role-notes { display: block; }
+
+        .trust-icon { width: 30px; height: 30px; background: var(--icon-empty); -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>'); -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center; transition: background 0.3s ease; margin-right: 8px; }
+
+        .score-big { font-size: 36px; font-weight: 900; margin: 5px 0; text-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: color 0.3s; text-align: center; width: 60px;}
+        .card-middle { display: flex; align-items: center; justify-content: space-between; }
+        .score-wrapper { display: flex; align-items: center; }
+        .trend-canvas { width: 60px; height: 25px; }
+        
+        .polarity-bar { width: 100%; height: 6px; background: #333; display: flex; border-radius: 3px; overflow: hidden; margin-bottom: 10px; }
+        .pol-red { background: #ff4d4d; transition: width 0.3s; }
+        .pol-black { background: #555; transition: width 0.3s; }
+
+        .mafia-tools { display: flex; gap: 5px; align-items: center; width: 100%; justify-content: center; margin-top: auto; }
+        .role-select { background: #222; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; padding: 2px; flex-grow: 1; }
+        .check-btn { width: 15px; height: 15px; border-radius: 50%; border: none; cursor: pointer; opacity: 0.3; transition: 0.2s; }
+        .check-btn.active { opacity: 1; box-shadow: 0 0 5px currentColor; }
+        .chk-red { background: #ff4d4d; color: #ff4d4d; }
+        .chk-black { background: #444; color: #aaa; }
+        
+        .sport-tools { display: flex; justify-content: space-between; margin-top: 5px;}
+        .sport-btn { background: #444; border: 1px solid #666; color: #fff; font-size: 10px; border-radius: 3px; cursor: pointer; padding: 2px 5px;}
+        .sport-btn:hover { background: #666; }
+
+        /* Боковая панель */
+        .sidebar { width: 300px; background: var(--panel-bg); border-left: 1px solid var(--border); display: flex; flex-direction: column; padding: 15px; overflow-y: auto; }
+        .sidebar h3 { margin: 0 0 10px 0; font-size: 14px; border-bottom: 1px solid var(--border); padding-bottom: 5px; }
+        .live-feed { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 11px; margin-bottom: 15px; }
+        .feed-item { background: rgba(0,0,0,0.1); padding: 8px; border-radius: 6px; border-left: 3px solid #555; animation: slideIn 0.3s; cursor: pointer; transition: 0.2s; }
+        .feed-item:hover { background: rgba(255,255,255,0.1); }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+        .feed-item.red-vote { border-color: #ff4d4d; }
+        .feed-item.black-vote { border-color: #000; }
+        .viewer-name { color: #00e5ff; cursor: pointer; text-decoration: underline; font-weight: bold; }
+        
+        .leaderboard { font-size: 11px; background: #222; padding: 10px; border-radius: 8px; margin-bottom: 10px;}
+        .leaderboard-item { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .badges-container { margin-top: 5px; font-size: 12px; }
+
+        /* Модальные окна */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: var(--panel-bg); padding: 20px; border-radius: 12px; width: 400px; max-width: 90%; color: var(--text-color); position: relative; }
+        .modal-close { position: absolute; top: 10px; right: 15px; cursor: pointer; font-size: 20px; font-weight: bold; }
+        .histogram-container { display: flex; align-items: flex-end; height: 150px; gap: 2px; margin-top: 20px; border-bottom: 1px solid var(--border); }
+        .hist-bar-wrapper { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+        .hist-bar { width: 100%; background: #00e5ff; border-radius: 2px 2px 0 0; transition: height 0.3s; }
+        .hist-label { font-size: 9px; margin-top: 4px; color: var(--text-muted); }
+        .db-search { width: 100%; padding: 8px; background: #222; border: 1px solid #555; color: #fff; margin-bottom: 10px; border-radius: 6px;}
+
+        .slot-1 { grid-area: 1 / 3 / 2 / 4; } .slot-2 { grid-area: 1 / 4 / 2 / 5; }
+        .slot-3 { grid-area: 2 / 4 / 3 / 5; } .slot-4 { grid-area: 3 / 4 / 4 / 5; }
+        .slot-5 { grid-area: 3 / 3 / 4 / 4; } .slot-6 { grid-area: 3 / 2 / 4 / 3; }
+        .slot-7 { grid-area: 3 / 1 / 4 / 2; } .slot-8 { grid-area: 2 / 1 / 3 / 2; }
+        .slot-9 { grid-area: 1 / 1 / 2 / 2; } .slot-10 { grid-area: 1 / 2 / 2 / 3; }
+
+        /* Auth Screen */
+        #auth-screen {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3e 50%, #0a0a1a 100%);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 9999;
+        }
+        .auth-box {
+            background: rgba(30, 30, 30, 0.95); border: 1px solid #333; border-radius: 16px;
+            padding: 40px; width: 400px; max-width: 90%; text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .auth-box h2 { margin: 0 0 8px; font-size: 24px; color: #fff; }
+        .auth-box p { margin: 0 0 25px; color: #888; font-size: 13px; }
+        .auth-input {
+            width: 100%; padding: 12px 15px; margin-bottom: 12px;
+            background: #222; border: 1px solid #444; border-radius: 8px;
+            color: #fff; font-family: inherit; font-size: 14px; outline: none;
+            transition: border 0.3s; box-sizing: border-box;
+        }
+        .auth-input:focus { border-color: #00e5ff; }
+        .auth-btn {
+            width: 100%; padding: 12px; background: linear-gradient(45deg, #00e5ff, #007acc);
+            border: none; border-radius: 8px; color: #fff; font-family: inherit;
+            font-size: 15px; font-weight: 700; cursor: pointer; transition: 0.3s; margin-top: 5px;
+        }
+        .auth-btn:hover { box-shadow: 0 0 20px rgba(0, 229, 255, 0.4); }
+        .auth-error { color: #ff4d4d; font-size: 12px; margin-top: 10px; min-height: 18px; }
+    </style>
+</head>
+<body>
+
+    <div id="auth-screen">
+        <div class="auth-box">
+            <h2>🎭 Mafia Pro Dashboard</h2>
+            <p>Войдите для управления оверлеем</p>
+            <input type="email" class="auth-input" id="login-email" placeholder="Email">
+            <input type="password" class="auth-input" id="login-password" placeholder="Пароль">
+            <button class="auth-btn" id="login-btn">Войти</button>
+            <div class="auth-error" id="login-error"></div>
+        </div>
+    </div>
+
+    <div id="dashboard-container" style="display:none">
+
+    <div class="top-bar">
+        <div class="controls-row">
+            <div class="controls-group">
+                <button class="btn btn-danger" onclick="resetGame()">🔄 Сброс базы</button>
+                <button class="btn" id="btn-pause" onclick="togglePause()">⏸ Пауза / Ночь</button>
+                <button class="btn" onclick="toggleTheme()">🌗 Тема</button>
+                <button class="btn" onclick="toggleView()">📋 Вид сетки</button>
+                <button class="btn" onclick="toggleMiniMode()">🗜 Мини-режим</button>
+            </div>
+            <div class="controls-group">
+                <button class="btn btn-epic" onclick="revealRoles()">👁 Раскрыть карты</button>
+                <button class="btn btn-gold" id="btn-mvp" onclick="toggleMVP()">🏆 MVP Голосование</button>
+                <button class="btn" id="btn-overlay" onclick="toggleOverlay()">👀 Скрыть оверлей</button>
+                <button class="btn" id="btn-blind" onclick="toggleBlindMode()">🙈 Хардкор (Слепой)</button>
+                <button class="btn" id="btn-heatmap" onclick="toggleHeatmap()">🔥 Heatmap</button>
+            </div>
+        </div>
+        <div class="controls-row">
+            <div class="controls-group">
+                <div class="stat-badge" id="stat-online">Зрителей: 0</div>
+                <div class="stat-badge stat-mafia" id="stat-acc-mafia">Находят мафию: 0%</div>
+                <div class="stat-badge stat-citizen" id="stat-acc-cit">Верят мирным: 0%</div>
+                <div class="stat-badge stat-gold" id="stat-voice" title="Отправить Аватар на стрим" onclick="pushVoiceAvatar()">Голос: -</div>
+                <div class="stat-badge stat-gold" id="stat-mvp-winner" style="display:none;">MVP: -</div>
+            </div>
+            <div class="controls-group">
+                <button class="btn" id="btn-vectors" onclick="toggleVectors()">🏹 Векторы Атаки (!sus)</button>
+                <button class="btn" id="btn-tutorial" onclick="toggleTutorial()">📖 Режим Новичка</button>
+                <button class="btn" onclick="startSheriffDuel()">⚔️ Дуэль Шерифов</button>
+                <button class="btn" onclick="postMatchReport()">📰 Итоги в чат</button>
+                <button class="btn" onclick="startLynchPoll()">🗳 Опрос в чат</button>
+            </div>
+        </div>
+        <div class="controls-row">
+            <div class="controls-group">
+                <button class="btn btn-obs" onclick="connectOBS()">🎥 OBS WebSockets</button>
+                <button class="btn" onclick="managePresets()">💾 Пресет стола</button>
+                <button class="btn" onclick="openPlayerDB()">📇 База Игроков</button>
+                <button class="btn" onclick="connectTwitch()">🟣 Twitch Чат</button>
+                <button class="btn" onclick="exportCSV()">📥 Скачать CSV</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="grid-area">
+            <div class="grid-container" id="results"></div>
+        </div>
+        <div class="sidebar">
+            <h3>Топ Детективы 🏆 <button class="btn" style="padding: 2px 5px" onclick="sendLeaderboardToChat()">В чат</button></h3>
+            <div class="leaderboard" id="leaderboard">Загрузка...</div>
+            <h3>Лента событий 🔴 (клик = хайлайт)</h3>
+            <div class="live-feed" id="feed"></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="hist-modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal('hist-modal')">&times;</span>
+            <h3 id="hist-title" style="margin-top:0;">Распределение голосов</h3>
+            <div class="histogram-container" id="hist-chart"></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="viewer-modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal('viewer-modal')">&times;</span>
+            <h3 style="margin-top:0;">Профиль: <span id="viewer-name-title" style="color:#00e5ff"></span></h3>
+            <p>Ранг: <b id="v-rank" style="color:#ffd700"></b></p>
+            <p>Угадывает мафию: <b id="v-mafia-acc">0%</b></p>
+            <p>Верит мирным: <b id="v-cit-acc">0%</b></p>
+            <p>Всего голосов: <b id="v-total-votes">0</b></p>
+            <p>Стрик побед: <b id="v-streak">0</b></p>
+            <div class="badges-container" id="v-badges">Ачивки: </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="player-db-modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal('player-db-modal')">&times;</span>
+            <h3 style="margin-top:0;">Архив Игроков 📇</h3>
+            <input type="text" class="db-search" id="db-search-input" placeholder="Введите ник игрока..." oninput="searchPlayerDB()">
+            <div id="db-search-result" style="font-size: 13px;">Вводите ник для поиска...</div>
+        </div>
+    </div>
+
+    </div><script>
+       // --- 1. НАСТРОЙКА FIREBASE ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCNpkZoUMVbWP7769VrtBP7pzGQEgR3cig",
+            authDomain: "sportmafiaapp.firebaseapp.com",
+            databaseURL: "https://sportmafiaapp-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "sportmafiaapp",
+            storageBucket: "sportmafiaapp.firebasestorage.app",
+            messagingSenderId: "858820837278",
+            appId: "1:858820837278:web:066665961df6187bdd608f"
+        };
+        
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const database = firebase.database();
+
+        // --- МУЛЬТИТЕНАНТНОСТЬ ---
+        let channelId = '';
+        let currentTwitchId = '';
+        const twitchIds = {
+            "sportmafia": "405491845",
+            "kykla66": "565673174",
+            "BlackGenaGenerator": "138486508",
+            "pchelaboss": "763486857",
+            "ChakraLounge": "487884011"
+        };
+        const _db = database;
+        function dbRef(path) { return _db.ref('overlays/' + currentTwitchId + '/' + path); }
+
+        // --- АВТОРИЗАЦИЯ ---
+        document.getElementById('login-btn').addEventListener('click', () => {
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+            document.getElementById('login-error').textContent = '';
+
+            firebase.auth().signInWithEmailAndPassword(email, password)
+                .then((cred) => {
+                    channelId = cred.user.email.split('@')[0];
+                    
+                    // Ищем цифровой ID в словаре. Если нет — используем сам текстовый channelId на всякий случай
+                    currentTwitchId = twitchIds[channelId] || channelId;
+                    
+                    document.getElementById('auth-screen').style.display = 'none';
+                    document.getElementById('dashboard-container').style.display = '';
+                    initApp();
+                })
+                .catch((err) => {
+                    document.getElementById('login-error').textContent = 'Ошибка: ' + err.message;
+                });
+        });
+
+        document.getElementById('login-password').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') document.getElementById('login-btn').click();
+        });
+
+        // --- 2. ЛОКАЛЬНОЕ ХРАНИЛИЩЕ И СОСТОЯНИЕ ---
+        let rawState = JSON.parse(localStorage.getItem('mafiaState')) || {};
+        let state = {
+            names: rawState.names || {}, dead: rawState.dead || {}, roles: rawState.roles || {},
+            checks: rawState.checks || {}, notes: rawState.notes || {}, presets: rawState.presets || {},
+            bingoGuesses: rawState.bingoGuesses || {}, fantasyDrafts: rawState.fantasyDrafts || {},
+            fouls: rawState.fouls || {}, donRoulette: rawState.donRoulette || {} // Новые стейты
+        };
+        
+        let viewerStats = JSON.parse(localStorage.getItem('viewerStats')) || {};
+        let playerStatsDB = JSON.parse(localStorage.getItem('playerStatsDB')) || {};
+        
+        let historyData = {}; let timeHistory = {}; let previousVotes = {}; let voteCounts = {}; 
+        let frozenPlayers = {}; 
+        
+        let isPaused = false; let isListMode = false; let isMiniMode = false;
+        let isOverlayHidden = false; let isMvpMode = false; let isBlindMode = false; let isHeatmap = false;
+        let isVectorsEnabled = false; let isTutorialEnabled = false;
+        
+        let activeSpeaker = null; // Для детектора лжи
+        let lieDetectorScore = 0;
+        let activeDuel = null; // Дуэль шерифов {p1: x, p2: y}
+        
+        let currentHistPlayer = null; 
+        let twitchClient = null; let tmiChannel = null; let tmiToken = null;
+        let obs = null; let obsConnected = false;
+        let topUserGlobal = "-";
+
+        function saveState() { localStorage.setItem('mafiaState', JSON.stringify(state)); }
+        function saveDBs() { localStorage.setItem('viewerStats', JSON.stringify(viewerStats)); localStorage.setItem('playerStatsDB', JSON.stringify(playerStatsDB)); }
+
+        // --- 3. ИНИЦИАЛИЗАЦИЯ ИНТЕРФЕЙСА ---
+        const resultsDiv = document.getElementById('results');
+        
+        function getRank(acc, total) {
+            if(total < 10) return 'Рядовой 🥉';
+            if(acc > 80 && total >= 30) return 'Комиссар Катани 🦅';
+            if(acc > 65 && total >= 20) return 'Инспектор 🚔';
+            if(acc > 50 && total >= 10) return 'Сержант 🥈';
+            return 'Детектив 🏅';
+        }
+
+        function drawSparkline(i) {
+            const canvas = document.getElementById(`canvas-${i}`);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const data = historyData[i] || [];
+            const W = canvas.width || 60, H = canvas.height || 25;
+            ctx.clearRect(0, 0, W, H);
+            if (data.length < 2) return;
+
+            const vals = data.map(v => parseFloat(v));
+            const min = Math.min(...vals) - 0.5;
+            const max = Math.max(...vals) + 0.5;
+            const range = max - min || 1;
+
+            const last = vals[vals.length - 1];
+            ctx.strokeStyle = last > 0 ? '#ff4d4d' : (last < 0 ? '#888' : '#00e5ff');
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            vals.forEach((val, idx) => {
+                const x = (idx / (vals.length - 1)) * W;
+                const y = H - ((val - min) / range * H);
+                if (idx === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+
+        function initGrid() {
+            resultsDiv.innerHTML = '';
+            for (let i = 1; i <= 10; i++) {
+                if(!historyData[i]) historyData[i] = [];
+                if(!timeHistory[i]) timeHistory[i] = [];
+                if(state.fouls[i] === undefined) state.fouls[i] = 0;
+                
+                const name = state.names[i] || `Игрок ${i}`;
+                const isDead = state.dead[i] ? 'dead' : '';
+                const role = state.roles[i] || 'unknown';
+                const roleClass = (role === 'sheriff') ? 'is-sheriff' : ((role === 'don') ? 'is-don' : '');
+                const note = state.notes[i] || '';
+                const isFrozen = frozenPlayers[i] ? 'frozen' : '';
+
+                resultsDiv.innerHTML += `
+                    <div class="player-card slot-${i} ${isDead} ${roleClass} ${isFrozen}" id="card-${i}">
+                        <div class="shield-icon" id="shield-${i}">🛡️</div>
+                        <div class="card-top">
+                            <span style="color:var(--text-muted); font-size:12px; font-weight:bold;">#${i}</span>
+                            <input type="text" class="player-name-input" value="${name}" onchange="updateName(${i}, this.value)">
+                            <div>
+                                <button class="btn-spotlight" onclick="triggerSpotlight(${i})" title="Spotlight">🔦</button>
+                                <button class="btn-hist" onclick="showHistogram(${i})" title="Гистограмма">📊</button>
+                                <button class="btn-kill" onclick="toggleDead(${i})" title="Убить/Воскресить">☠</button>
+                            </div>
+                        </div>
+                        
+                        <div class="swing-icon" id="swing-${i}">📉</div>
+                        <textarea class="role-notes" placeholder="Блокнот (проверки)..." onchange="updateNote(${i}, this.value)">${note}</textarea>
+                        
+                        <div class="card-middle">
+                            <div class="score-wrapper">
+                                <div class="trust-icon" id="trust-icon-${i}"></div>
+                                <div class="score-big" id="score-${i}">0</div>
+                            </div>
+                            <canvas class="trend-canvas" id="canvas-${i}"></canvas>
+                        </div>
+
+                        <div class="polarity-bar">
+                            <div class="pol-red" id="pol-red-${i}" style="width: 50%"></div>
+                            <div class="pol-black" id="pol-black-${i}" style="width: 50%"></div>
+                        </div>
+                        
+                        <div class="mafia-tools">
+                            <select class="role-select" onchange="updateRole(${i}, this.value)">
+                                <option value="unknown" ${role=='unknown'?'selected':''}>? Роль</option>
+                                <option value="citizen" ${role=='citizen'?'selected':''}>Мирный</option>
+                                <option value="sheriff" ${role=='sheriff'?'selected':''}>Шериф</option>
+                                <option value="mafia" ${role=='mafia'?'selected':''}>Мафия</option>
+                                <option value="don" ${role=='don'?'selected':''}>Дон</option>
+                            </select>
+                            <button class="check-btn chk-red ${state.checks[i]=='red'?'active':''}" onclick="setCheck(${i}, 'red')"></button>
+                            <button class="check-btn chk-black ${state.checks[i]=='black'?'active':''}" onclick="setCheck(${i}, 'black')"></button>
+                        </div>
+
+                        <div class="sport-tools">
+                            <button class="sport-btn" onclick="addFoul(${i})" title="Выдать фол">🚩 Фолы: <span id="foul-cnt-${i}">${state.fouls[i]}</span></button>
+                            <button class="sport-btn ${activeSpeaker===i ? 'btn-active':''}" id="btn-speak-${i}" onclick="toggleSpeaker(${i})" title="Включить Детектор лжи чата">🎙️ Говорит</button>
+                        </div>
+                    </div>
+                `;
+            }
+            for (let i = 1; i <= 10; i++) drawSparkline(i);
+            updateLeaderboardUI();
+            
+            // Sync initial fouls to overlay
+            dbRef('gameState/fouls').set(state.fouls);
+        }
+        // initGrid() is called from initApp() after auth
+
+        // --- 4. МЕХАНИКИ И УПРАВЛЕНИЕ ---
+        window.updateName = (i, val) => { state.names[i] = val; saveState(); }
+        window.toggleDead = (i) => { 
+            state.dead[i] = !state.dead[i]; 
+            if(state.dead[i]) dbRef('gameState/deathAnim').set({ player: i, ts: Date.now() }); 
+            saveState(); initGrid(); 
+        }
+        window.updateNote = (i, val) => { state.notes[i] = val; saveState(); }
+        window.setCheck = (i, color) => { state.checks[i] = state.checks[i] === color ? null : color; saveState(); initGrid(); }
+        
+        window.updateRole = (i, val) => { 
+            state.roles[i] = val; 
+            let evilCount = 0;
+            for(let j=1; j<=10; j++) if(state.roles[j] === 'mafia' || state.roles[j] === 'don') evilCount++;
+            if (evilCount === 3) for(let j=1; j<=10; j++) if(state.roles[j] === 'unknown') state.roles[j] = 'citizen';
+            saveState(); initGrid(); calculateAccuracy(); 
+        }
+
+        window.revealRoles = () => {
+            if(confirm("Вывести роли на экраны зрителей и подсчитать итоги?")) {
+                dbRef('gameState/roles').set(state.roles);
+                dbRef('gameState/revealRoles').set(true);
+                playAlertSound('high'); 
+                checkTwitchBingo();
+                calculateFantasyDraft();
+                updateViewerStats(); 
+                updatePlayerDBStats();
+                updateLeaderboardUI();
+            }
+        }
+
+        window.triggerSpotlight = (i) => {
+            dbRef('gameState/spotlight').set({player: i, ts: Date.now()});
+            addToFeed('Система', 0, `🔦 Включен Spotlight на #${i}`);
+        }
+
+        window.addFoul = (i) => {
+            state.fouls[i] = (state.fouls[i] || 0) + 1;
+            if(state.fouls[i] > 4) state.fouls[i] = 0; // reset
+            document.getElementById(`foul-cnt-${i}`).innerText = state.fouls[i];
+            saveState();
+            dbRef(`gameState/fouls/${i}`).set(state.fouls[i]);
+            if(state.fouls[i] === 3) addToFeed('Система', 0, `⚠️ Игрок #${i} получает 3-й фол (мут)!`);
+            if(state.fouls[i] === 4) addToFeed('Система', 0, `❌ Игрок #${i} получает 4-й фол (дисквал)!`);
+        }
+
+        window.toggleSpeaker = (i) => {
+            if(activeSpeaker === i) {
+                activeSpeaker = null;
+                dbRef('gameState/lieDetector').set(null); // Выключаем детектор
+            } else {
+                activeSpeaker = i;
+                lieDetectorScore = 0;
+                dbRef('gameState/lieDetector').set({speaker: i, score: 0});
+            }
+            initGrid(); // Перерисовка для подсветки кнопки
+        }
+
+        window.startSheriffDuel = () => {
+            if(activeDuel) {
+                activeDuel = null;
+                dbRef('gameState/duel').set(null);
+                addToFeed('Система', 0, `⚔️ Дуэль шерифов завершена.`);
+                if(twitchClient && tmiToken) twitchClient.say(tmiChannel, `⚔️ Дуэль Шерифов окончена!`);
+            } else {
+                let p1 = prompt("Номер первого вскрывшегося Шерифа:", "1");
+                let p2 = prompt("Номер второго вскрывшегося Шерифа:", "2");
+                if(p1 && p2) {
+                    activeDuel = {p1: parseInt(p1), p2: parseInt(p2)};
+                    dbRef('gameState/duel').set(activeDuel);
+                    dbRef('gameState/duelVotes').remove();
+                    addToFeed('Система', 0, `⚔️ Начата дуэль шерифов: #${p1} vs #${p2}`);
+                    if(twitchClient && tmiToken) twitchClient.say(tmiChannel, `⚔️ Вскрылось два Шерифа! Кому верите больше? Пишите в чат !real ${p1} или !real ${p2}`);
+                }
+            }
+        }
+
+        // --- 5. ЗВУКИ ---
+        function playAlertSound(type = 'low') {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                osc.type = type === 'low' ? 'triangle' : 'sine';
+                osc.frequency.setValueAtTime(type === 'low' ? 300 : 800, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.4);
+                osc.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.4);
+            } catch(e) {}
+        }
+
+        // --- 6. ОСНОВНОЙ СЛУШАТЕЛЬ БАЗЫ И РАСЧЕТЫ ---
+        let controversyAlertSent = {}; 
+
+        function startVotesListener() {
+        dbRef('votes').on('value', (snapshot) => {
+            const votes = snapshot.val() || {};
+            let allVoters = new Set();
+            let scoresData = []; 
+            const now = Date.now();
+            voteCounts = {}; 
+            
+            for (let i = 1; i <= 10; i++) {
+                const playerVotes = votes[i] || {};
+                let totalScore = 0, count = 0, redCount = 0, blackCount = 0;
+                let distribution = {}; 
+
+                for (let userId in playerVotes) {
+                    allVoters.add(userId);
+                    let score = playerVotes[userId].score;
+                    if(frozenPlayers[i]) continue; 
+                    
+                    totalScore += score; count++;
+                    if (score > 0) redCount++;
+                    if (score < 0) blackCount++;
+                    
+                    distribution[score] = (distribution[score] || 0) + 1;
+                    voteCounts[userId] = (voteCounts[userId] || 0) + 1;
+
+                    if (!previousVotes[i] || !previousVotes[i][userId] || previousVotes[i][userId].score !== score) {
+                        addToFeed(userId, i, score);
+    
+                        if (score === -10 || score === 10) {
+                            dbRef('gameState/emojiRain').set({player: i, type: score > 0 ? 'red' : 'black', ts: Date.now()});
+        
+                            // 🚨 ДОБАВЛЯЕМ ЭТУ СТРОКУ 🚨
+                            setTimeout(() => dbRef('gameState/emojiRain').set(null), 3000);
+                        }
+
+                        let isMaf = (state.roles[i] === 'mafia' || state.roles[i] === 'don');
+                        if (score === -10 && isMaf && !viewerStats[userId]?.badges?.includes('Снайпер 🎯')) {
+                            if(!viewerStats[userId]) viewerStats[userId] = { badges: [] };
+                            if(!viewerStats[userId].badges) viewerStats[userId].badges = [];
+                            viewerStats[userId].badges.push('Снайпер 🎯');
+                            saveDBs();
+                        }
+                    }
+                }
+
+                let avg = count > 0 ? (totalScore / count).toFixed(1) : 0;
+                
+                if (count > 10 && Math.abs(redCount - blackCount) <= 2 && !controversyAlertSent[i]) {
+                    addToFeed('Система', 0, `⚡ Чат раскололся 50/50 по Игроку #${i}!`);
+                    if(twitchClient && tmiToken) twitchClient.say(tmiChannel, `⚡ Мнения разделились! Чат не может определиться насчет Игрока #${i}!`);
+                    controversyAlertSent[i] = true;
+                }
+                
+                if (!historyData[i]) historyData[i] = [];
+                historyData[i].push(avg);
+                if(historyData[i].length > 15) historyData[i].shift();
+                
+                if (!timeHistory[i]) timeHistory[i] = [];
+                timeHistory[i].push({time: now, avg: parseFloat(avg)});
+                timeHistory[i] = timeHistory[i].filter(item => now - item.time <= 30000);
+                
+                checkSwings(i);
+                drawSparkline(i);
+
+                const scoreEl = document.getElementById(`score-${i}`);
+                const iconEl = document.getElementById(`trust-icon-${i}`);
+                
+                if (scoreEl && iconEl) {
+                    scoreEl.innerText = (avg > 0 ? '+' : '') + avg;
+                    let absAvg = Math.abs(avg);
+                    let fillPercent = (absAvg / 10) * 100;
+
+                    if (avg > 0) { 
+                        let c = Math.max(0, 255 - avg * 20); 
+                        scoreEl.style.color = `rgb(255, ${c}, ${c})`; 
+                        iconEl.style.background = `linear-gradient(to top, #ff4d4d ${fillPercent}%, var(--icon-empty) ${fillPercent}%)`;
+                    } else if (avg < 0) { 
+                        let c = Math.max(50, 255 - Math.abs(avg) * 20); 
+                        scoreEl.style.color = `rgb(${c}, ${c}, ${c})`; 
+                        iconEl.style.background = `linear-gradient(to top, #000000 ${fillPercent}%, var(--icon-empty) ${fillPercent}%)`;
+                    } else { 
+                        scoreEl.style.color = 'var(--text-color)'; 
+                        iconEl.style.background = 'var(--icon-empty)';
+                    }
+
+                    let totalP = redCount + blackCount;
+                    let pRed = totalP > 0 ? (redCount / totalP * 100) : 50;
+                    document.getElementById(`pol-red-${i}`).style.width = pRed + '%';
+                    document.getElementById(`pol-black-${i}`).style.width = (100 - pRed) + '%';
+                }
+
+                if (!state.dead[i]) scoresData.push({ id: i, score: parseFloat(avg) });
+                if(currentHistPlayer === i) renderHistogramBar(distribution);
+            }
+
+            document.getElementById('stat-online').innerText = `Зрителей: ${allVoters.size}`;
+            previousVotes = votes; 
+            
+            document.querySelectorAll('.player-card').forEach(c => c.classList.remove('suspect-crown', 'trusted-crown'));
+            if (scoresData.length > 0) {
+                scoresData.sort((a, b) => b.score - a.score);
+                if (scoresData[0].score > 0) document.getElementById(`card-${scoresData[0].id}`).classList.add('trusted-crown');
+                if (scoresData[scoresData.length - 1].score < 0) document.getElementById(`card-${scoresData[scoresData.length - 1].id}`).classList.add('suspect-crown');
+                
+                if (isListMode) {
+                    scoresData.forEach((item, index) => document.getElementById(`card-${item.id}`).style.order = index);
+                    for(let i=1; i<=10; i++) if(state.dead[i]) document.getElementById(`card-${i}`).style.order = 99;
+                }
+            }
+
+            calculateAccuracy();
+            calculateVoiceOfPeople();
+        });
+        } // end startVotesListener
+
+        // 3-way MVP Listener
+        function startMvpListener() {
+        dbRef('mvpVotes').on('value', snap => {
+            if(!isMvpMode) return;
+            const data = snap.val() || {};
+            let tally = {red: {}, black: {}, wtf: {}};
+            
+            for(let u in data.red || {}) tally.red[data.red[u]] = (tally.red[data.red[u]] || 0) + 1;
+            for(let u in data.black || {}) tally.black[data.black[u]] = (tally.black[data.black[u]] || 0) + 1;
+            for(let u in data.wtf || {}) tally.wtf[data.wtf[u]] = (tally.wtf[data.wtf[u]] || 0) + 1;
+
+            let getWinner = (obj) => { let w = "-", max = 0; for(let p in obj) { if(obj[p]>max){max=obj[p]; w=p;} } return w; };
+            
+            document.getElementById('stat-mvp-winner').innerText = `MVP: 🔴#${getWinner(tally.red)} | ⚫#${getWinner(tally.black)} | 🤯#${getWinner(tally.wtf)}`;
+        });
+        } // end startMvpListener
+
+        // --- 7. АНАЛИТИКА И ВСПОМОГАТЕЛЬНЫЕ ---
+        function checkSwings(i) {
+            const hist = timeHistory[i];
+            const icon = document.getElementById(`swing-${i}`);
+            if (!hist || hist.length < 2 || !icon) return;
+            const oldest = hist[0].avg; const newest = hist[hist.length-1].avg;
+            if (oldest - newest > 4) { 
+                icon.style.display = 'block';
+                if (!icon.dataset.played) { 
+                    playAlertSound('low'); icon.dataset.played = "true"; 
+                    if(twitchClient && tmiToken) twitchClient.say(tmiChannel, `📉 Внимание! Доверие чата к Игроку #${i} резко упало!`);
+                }
+                setTimeout(() => { icon.style.display = 'none'; icon.dataset.played = ""; }, 5000);
+            }
+        }
+
+        window.calculateAccuracy = () => {
+            let correctMaf = 0, totalMaf = 0, correctCit = 0, totalCit = 0;
+            for(let i=1; i<=10; i++) {
+                let role = state.roles[i];
+                if (!role || role === 'unknown' || state.dead[i]) continue;
+                let avg = historyData[i] && historyData[i].length ? parseFloat(historyData[i][historyData[i].length-1]) : 0;
+                
+                if (role === 'mafia' || role === 'don') { totalMaf++; if (avg < 0) correctMaf++; }
+                if (role === 'citizen' || role === 'sheriff') { totalCit++; if (avg > 0) correctCit++; }
+            }
+            let pMaf = totalMaf > 0 ? Math.round((correctMaf/totalMaf)*100) : 0;
+            let pCit = totalCit > 0 ? Math.round((correctCit/totalCit)*100) : 0;
+            document.getElementById('stat-acc-mafia').innerText = `Находят мафию: ${pMaf}%`;
+            document.getElementById('stat-acc-cit').innerText = `Верят мирным: ${pCit}%`;
+        }
+
+        function calculateVoiceOfPeople() {
+            let topUser = "-", max = 0;
+            for(let u in voteCounts) { if(voteCounts[u] > max) { max = voteCounts[u]; topUser = u; } }
+            topUserGlobal = topUser;
+            if(topUser !== "-") document.getElementById('stat-voice').innerText = `Голос: ${topUser.substring(0, 8)}.. (${max})`;
+        }
+
+        window.pushVoiceAvatar = () => {
+            if(topUserGlobal === "-") return;
+            let st = viewerStats[topUserGlobal] || {mafTotal:0, mafCorrect:0, votes:0};
+            let acc = st.mafTotal > 0 ? Math.round((st.mafCorrect/st.mafTotal)*100) : 0;
+            let rank = getRank(acc, st.votes);
+    
+            dbRef('gameState/voiceAvatar').set({user: topUserGlobal, rank: rank, ts: Date.now()});
+            addToFeed('Система', 0, `👑 Аватар ${topUserGlobal} отправлен на стрим!`);
+    
+            // ДОБАВИТЬ ЭТО: Убираем из базы через 8.5 секунд (оверлей показывает его 8 сек)
+            setTimeout(() => dbRef('gameState/voiceAvatar').set(null), 8500);
+        }
+
+        function updateLeaderboardUI() {
+            let arr = [];
+            for(let u in viewerStats) {
+                let st = viewerStats[u];
+                if(st.mafTotal > 0) {
+                    arr.push({ name: u, acc: Math.round((st.mafCorrect/st.mafTotal)*100), streak: st.streak || 0, votes: st.votes });
+                }
+            }
+            arr.sort((a,b) => b.acc - a.acc || b.streak - a.streak);
+            let top5 = arr.slice(0, 5);
+            let html = '';
+            top5.forEach((item, idx) => {
+                let rankIcon = getRank(item.acc, item.votes).split(' ')[1]; // Берем только смайл
+                html += `<div class="leaderboard-item"><span>${idx+1}. ${item.name} ${rankIcon}</span> <span style="color:#ff4d4d">${item.acc}%</span></div>`;
+            });
+            document.getElementById('leaderboard').innerHTML = html || "Пока нет данных.";
+        }
+
+        window.sendLeaderboardToChat = () => {
+            if(!twitchClient || !tmiToken) return alert("Подключите Twitch бота с токеном!");
+            let arr = [];
+            for(let u in viewerStats) if(viewerStats[u].mafTotal > 0) arr.push({name: u, acc: Math.round((viewerStats[u].mafCorrect/viewerStats[u].mafTotal)*100)});
+            arr.sort((a,b) => b.acc - a.acc);
+            let text = "🏆 ТОП-3 Детектива: " + arr.slice(0,3).map((a,i) => `${i+1}. ${a.name} (${a.acc}%)`).join(' | ');
+            twitchClient.say(tmiChannel, text);
+        }
+
+        // --- 8. МОДАЛКИ И ПРОФИЛИ ---
+        window.showHistogram = (i) => {
+            currentHistPlayer = i;
+            document.getElementById('hist-title').innerText = `Оценки Игрока #${i} (${state.names[i] || ''})`;
+            document.getElementById('hist-modal').style.display = 'flex';
+            dbRef(`votes/${i}`).once('value', snap => {
+                let dist = {}; for(let u in snap.val()||{}) dist[snap.val()[u].score] = (dist[snap.val()[u].score] || 0) + 1;
+                renderHistogramBar(dist);
+            });
+        }
+        
+        function renderHistogramBar(dist) {
+            const container = document.getElementById('hist-chart'); container.innerHTML = '';
+            let maxCount = Math.max(...Object.values(dist), 1);
+            for(let v = -10; v <= 10; v++) {
+                let count = dist[v] || 0, hPercent = (count / maxCount) * 100, color = v > 0 ? '#ff4d4d' : (v < 0 ? '#555' : '#888'); 
+                container.innerHTML += `<div class="hist-bar-wrapper"><div class="hist-bar" style="height: ${hPercent}%; background: ${color};" title="Оценка ${v}: ${count} чел."></div><div class="hist-label">${v}</div></div>`;
+            }
+        }
+
+        window.closeModal = (id) => { document.getElementById(id).style.display = 'none'; if(id==='hist-modal') currentHistPlayer = null; }
+
+        window.showViewerProfile = (username) => {
+            document.getElementById('viewer-name-title').innerText = username;
+            let st = viewerStats[username] || { mafTotal: 0, mafCorrect: 0, citTotal: 0, citCorrect: 0, votes: 0, streak: 0, badges: [] };
+            let acc = st.mafTotal > 0 ? Math.round((st.mafCorrect/st.mafTotal)*100) : 0;
+            
+            document.getElementById('v-rank').innerText = getRank(acc, st.votes);
+            document.getElementById('v-mafia-acc').innerText = acc + '%';
+            document.getElementById('v-cit-acc').innerText = st.citTotal > 0 ? Math.round((st.citCorrect/st.citTotal)*100)+'%' : '0%';
+            document.getElementById('v-total-votes').innerText = st.votes;
+            document.getElementById('v-streak').innerText = st.streak || 0;
+            document.getElementById('v-badges').innerText = "Ачивки: " + (st.badges ? [...new Set(st.badges)].join(' ') : 'Нет');
+            document.getElementById('viewer-modal').style.display = 'flex';
+        }
+
+        window.openPlayerDB = () => { document.getElementById('player-db-modal').style.display = 'flex'; document.getElementById('db-search-input').value = ''; document.getElementById('db-search-result').innerText = ''; }
+        window.searchPlayerDB = () => {
+            const val = document.getElementById('db-search-input').value.toLowerCase();
+            const res = document.getElementById('db-search-result');
+            if(!val) { res.innerText = ''; return; }
+            let found = Object.keys(playerStatsDB).find(k => k.toLowerCase() === val);
+            if(found) {
+                let st = playerStatsDB[found];
+                res.innerHTML = `<b>${found}</b><br><br>Сыграно игр: ${st.games}<br>Побед за мафию: ${st.mafWins}<br>Титулов MVP: ${st.mvp}`;
+            } else { res.innerText = 'Игрок не найден в локальном архиве.'; }
+        }
+
+        // --- 9. TWITCH TMI ИНТЕГРАЦИЯ И НОВЫЕ ФИШКИ ---
+        window.connectTwitch = () => {
+            tmiChannel = prompt("Введите имя Twitch канала (например: sportmafia):", tmiChannel || "");
+            if (!tmiChannel) return;
+            tmiToken = prompt("Введите OAuth токен (oauth:xxxx) чтобы бот мог отвечать в чат. Оставьте пустым для Read-Only режима.", tmiToken || "");
+            
+            if(twitchClient) twitchClient.disconnect();
+            
+            let opts = { channels: [tmiChannel] };
+            if (tmiToken) opts.identity = { username: tmiChannel, password: tmiToken };
+            
+            twitchClient = new tmi.Client(opts);
+            twitchClient.connect().then(() => { addToFeed('Система', 0, '✅ Twitch подключен: ' + tmiChannel); }).catch(e => alert("Ошибка Twitch: " + e));
+
+            twitchClient.on('message', (chan, tags, message, self) => {
+                if (self) return;
+                const msg = message.toLowerCase();
+
+                // Голосование: !vote 4 -10
+                const voteMatch = msg.match(/^!vote\s+(\d+)\s+(-?\d+)/);
+                if (voteMatch) {
+                    const player = parseInt(voteMatch[1]); const score = Math.max(-10, Math.min(10, parseInt(voteMatch[2])));
+                    if (player >= 1 && player <= 10 && !isPaused && !isMvpMode) dbRef(`votes/${player}/${tags.username}`).set({ score: score });
+                }
+
+                // Бинго ролей: !setup 1 4 7
+                const bingoMatch = msg.match(/^!setup\s+(\d+)\s+(\d+)\s+(\d+)/);
+                if (bingoMatch) {
+                    state.bingoGuesses[tags.username] = [parseInt(bingoMatch[1]), parseInt(bingoMatch[2]), parseInt(bingoMatch[3])];
+                    saveState(); addToFeed('Система', 0, `🎲 ${tags.username} поставил Бинго`);
+                }
+
+                // Векторы Атаки: !sus 4 7 (4 подозревает 7)
+                const susMatch = msg.match(/^!sus\s+(\d+)\s+(\d+)/);
+                if (susMatch && isVectorsEnabled) {
+                    const f = parseInt(susMatch[1]), t = parseInt(susMatch[2]);
+                    if (f>=1 && f<=10 && t>=1 && t<=10) {
+                        dbRef(`gameState/vectors/${f}-${t}`).set(Date.now());
+                    }
+                }
+
+                // Голосование в Дуэли Шерифов: !real 2
+                const duelMatch = msg.match(/^!real\s+(\d+)/);
+                if (duelMatch && activeDuel) {
+                    const p = parseInt(duelMatch[1]);
+                    if(p === activeDuel.p1 || p === activeDuel.p2) {
+                        dbRef(`gameState/duelVotes/${tags.username}`).set(p);
+                    }
+                }
+
+                // Рулетка Дона: !shoot 3 5 1
+                const shootMatch = msg.match(/^!shoot\s+(\d+)\s+(\d+)\s+(\d+)/);
+                if (shootMatch && isPaused) { // Принимаем ставки только ночью
+                    state.donRoulette[tags.username] = [parseInt(shootMatch[1]), parseInt(shootMatch[2]), parseInt(shootMatch[3])];
+                    saveState(); addToFeed('Система', 0, `🔫 ${tags.username} угадывает отстрел`);
+                }
+
+                // Детектор Лжи: + или -
+                if ((msg === '+' || msg === '-') && activeSpeaker) {
+                    lieDetectorScore += (msg === '+' ? 1 : -1);
+                    // Ограничиваем размах
+                    lieDetectorScore = Math.max(-50, Math.min(50, lieDetectorScore));
+                    dbRef(`gameState/lieDetector/score`).set(lieDetectorScore);
+                }
+
+                // Эмодзи Жесты
+                const gestures = ['!попил', '!шериф', '!черный', '!красный', '!пас'];
+                if (gestures.includes(msg)) {
+                    dbRef('gameState/gestures').set({type: msg.substring(1), user: tags.username, ts: Date.now()});
+                    
+                    // ДОБАВИТЬ ЭТО: Очищаем жест через 3.5 секунды
+                    setTimeout(() => dbRef('gameState/gestures').set(null), 3500);
+                }
+
+                // Бот Информер
+                if (tmiToken) {
+                    if (msg === '!mvp' && isMvpMode) twitchClient.say(chan, "🏆 Идет голосование за 3 номинации MVP! Нажмите кнопки на оверлее.");
+                    if (msg === '!top') {
+                        let worst = 1, min = 999;
+                        for(let i=1;i<=10;i++) { let h=historyData[i]; if(h&&h.length && h[h.length-1]<min && !state.dead[i]){ min=h[h.length-1]; worst=i; } }
+                        twitchClient.say(chan, `📉 Самый подозрительный игрок сейчас: Игрок #${worst} (Счет: ${min})`);
+                    }
+                }
+            });
+        }
+
+        function checkTwitchBingo() {
+            let actualMafia = [];
+            for(let i=1; i<=10; i++) if(state.roles[i] === 'mafia' || state.roles[i] === 'don') actualMafia.push(i);
+            if(actualMafia.length < 3) return;
+            
+            let winners = [];
+            for(let user in state.bingoGuesses) {
+                let guess = state.bingoGuesses[user];
+                let correct = guess.filter(g => actualMafia.includes(g)).length;
+                if(correct === 3) winners.push(user);
+            }
+            if(winners.length > 0 && twitchClient && tmiToken) {
+                twitchClient.say(tmiChannel, `🎉 БИНГО РОЛЕЙ! Всю мафию с 1-го дня угадали: ${winners.join(', ')}! GG!`);
+            }
+        }
+
+        function calculateFantasyDraft() {
+            let winners = [];
+            for(let user in state.fantasyDrafts) {
+                let team = state.fantasyDrafts[user];
+                let aliveCount = team.filter(p => !state.dead[p]).length;
+                if(aliveCount === 3) winners.push(user); 
+            }
+            if(winners.length > 0 && twitchClient && tmiToken) {
+                twitchClient.say(tmiChannel, `⚔️ Идеальный Фэнтези Драфт (все 3 игрока выжили): ${winners.join(', ')}!`);
+            }
+        }
+
+        window.postMatchReport = () => {
+            if(!twitchClient || !tmiToken) return alert("Нужен токен Twitch!");
+            let bestAcc = 0, bestUser = "Никто";
+            for(let u in viewerStats) {
+                let st = viewerStats[u];
+                if(st.mafTotal > 0) {
+                    let p = Math.round((st.mafCorrect/st.mafTotal)*100);
+                    if(p > bestAcc) { bestAcc = p; bestUser = u; }
+                }
+            }
+            let worstCit = 1, minCit = 999;
+            for(let i=1; i<=10; i++) {
+                if(state.roles[i] === 'citizen' || state.roles[i] === 'sheriff') {
+                    let avg = historyData[i] && historyData[i].length ? historyData[i][historyData[i].length-1] : 0;
+                    if(avg < minCit) { minCit = avg; worstCit = i; }
+                }
+            }
+            twitchClient.say(tmiChannel, `📰 Итоги: Лучший детектив игры - @${bestUser} (${bestAcc}% точности). Самый подозрительный мирный: Игрок #${worstCit}!`);
+        }
+
+        window.startLynchPoll = () => {
+            if(!twitchClient || !tmiToken) return alert("Нужен токен Twitch!");
+            let p1 = prompt("Кого голосуем первым? (номер):", "1");
+            let p2 = prompt("Кого голосуем вторым? (номер):", "2");
+            if(p1 && p2) twitchClient.say(tmiChannel, `🗳️ ГОЛОСОВАНИЕ! Кого выгоняем: Игрока #${p1} или Игрока #${p2}? Пишите номер в чат!`);
+        }
+
+        // --- 10. OBS WEBSOCKET ИНТЕГРАЦИЯ ---
+        window.connectOBS = async () => {
+            if(!obs) obs = new OBSWebSocket();
+            try {
+                const url = prompt("OBS WebSocket URL (по умолч. ws://localhost:4455):", "ws://127.0.0.1:4455");
+                if(!url) return;
+                const pw = prompt("OBS WebSocket Пароль (если есть):", "");
+                await obs.connect(url, pw);
+                obsConnected = true;
+                addToFeed('Система', 0, '🎥 OBS Успешно подключен!');
+            } catch(e) { alert("Ошибка OBS: " + e.message); }
+        }
+
+        // --- 11. УТИЛИТЫ И ОБНОВЛЕНИЕ БАЗ ---
+        function addToFeed(user, player, score) {
+            const feed = document.getElementById('feed');
+            let type = '', text = '';
+            if (player === 0) { text = score; } else {
+                type = score > 0 ? 'red-vote' : (score < 0 ? 'black-vote' : '');
+                text = `<span class="viewer-name" onclick="showViewerProfile('${user}')">${user.substring(0, 10)}</span> -> #${player} [${score}]`;
+                if(!viewerStats[user]) viewerStats[user] = { mafTotal:0, mafCorrect:0, citTotal:0, citCorrect:0, votes:0, streak: 0, badges: [] };
+                viewerStats[user].votes++;
+            }
+            let el = document.createElement('div');
+            el.className = `feed-item ${type}`;
+            el.innerHTML = text;
+            el.onclick = () => {
+                dbRef('gameState/highlightMsg').set({user: user, text: score, ts: Date.now()});
+                playAlertSound('high');
+        
+                // ДОБАВИТЬ ЭТО: Очищаем через 6.5 секунд
+                setTimeout(() => dbRef('gameState/highlightMsg').set(null), 6500);
+            };
+            feed.prepend(el);
+            if (feed.children.length > 60) feed.removeChild(feed.lastChild);
+        }
+
+        window.managePresets = () => {
+            const act = prompt("Введи '1' чтобы Сохранить текущие имена, '2' чтобы Загрузить.", "1");
+            if(act === "1") { state.presets['default'] = { ...state.names }; saveState(); alert("Пресет сохранен!"); }
+            else if(act === "2" && state.presets['default']) { state.names = { ...state.presets['default'] }; saveState(); initGrid(); }
+        }
+
+        function updateViewerStats() {
+            for(let i=1; i<=10; i++) {
+                let r = state.roles[i]; if(!r || r==='unknown') continue;
+                let isMaf = (r==='mafia'||r==='don');
+                dbRef(`votes/${i}`).once('value', snap => {
+                    let v = snap.val() || {};
+                    for(let u in v) {
+                        if(viewerStats[u]) {
+                            if(isMaf) { 
+                                viewerStats[u].mafTotal++; 
+                                if(v[u].score < 0) {
+                                    viewerStats[u].mafCorrect++; 
+                                    viewerStats[u].streak = (viewerStats[u].streak || 0) + 1;
+                                } else {
+                                    viewerStats[u].streak = 0;
+                                }
+                            }
+                            else { 
+                                viewerStats[u].citTotal++; 
+                                if(v[u].score > 0) viewerStats[u].citCorrect++; 
+                            }
+                        }
+                    }
+                    saveDBs();
+                });
+            }
+        }
+
+        function updatePlayerDBStats() {
+            for(let i=1; i<=10; i++) {
+                let n = state.names[i]; if(!n || n.startsWith('Игрок')) continue;
+                if(!playerStatsDB[n]) playerStatsDB[n] = { games:0, mafWins:0, mvp:0 };
+                playerStatsDB[n].games++;
+            }
+            saveDBs();
+        }
+
+        // --- 12. ГЛОБАЛЬНЫЕ КНОПКИ ---
+        window.resetGame = () => {
+            if(confirm("Начать новую игру?")) {
+                dbRef('votes').remove(); dbRef('mvpVotes').remove(); dbRef('gameState/revealRoles').set(false);
+                historyData = {}; timeHistory = {}; voteCounts = {}; frozenPlayers = {}; state.bingoGuesses = {}; state.fantasyDrafts = {}; state.donRoulette = {};
+                state.dead = {}; state.checks = {}; state.roles = {}; state.notes = {}; state.fouls = {};
+                activeSpeaker = null; activeDuel = null;
+                saveState(); initGrid(); document.getElementById('feed').innerHTML = '';
+                dbRef('gameState/spotlight').remove();
+                dbRef('gameState/highlightMsg').remove();
+                dbRef('gameState/vectors').remove();
+                dbRef('gameState/lieDetector').remove();
+                dbRef('gameState/duel').remove();
+            }
+        }
+
+        window.togglePause = () => {
+            isPaused = !isPaused;
+            dbRef('gameState/isVotingPaused').set(isPaused);
+            const btn = document.getElementById('btn-pause');
+            btn.classList.toggle('btn-active');
+            btn.innerText = isPaused ? "▶ Продолжить" : "⏸ Пауза / Ночь";
+            if(isPaused && twitchClient && tmiToken) twitchClient.say(tmiChannel, "🌙 Город засыпает... Можно писать ставки на отстрел Дона через !shoot 1 2 3");
+        }
+        
+        window.toggleMVP = () => {
+            isMvpMode = !isMvpMode; dbRef('gameState/mvpMode').set(isMvpMode);
+            document.getElementById('btn-mvp').classList.toggle('btn-active');
+            document.getElementById('stat-mvp-winner').style.display = isMvpMode ? 'inline-block' : 'none';
+        }
+
+        window.toggleOverlay = () => {
+            isOverlayHidden = !isOverlayHidden; dbRef('gameState/overlayHidden').set(isOverlayHidden);
+            document.getElementById('btn-overlay').classList.toggle('btn-active');
+        }
+
+        window.toggleBlindMode = () => {
+            isBlindMode = !isBlindMode; dbRef('gameState/blindMode').set(isBlindMode);
+            document.getElementById('btn-blind').classList.toggle('btn-danger');
+        }
+
+        window.toggleHeatmap = () => {
+            isHeatmap = !isHeatmap; dbRef('gameState/heatmap').set(isHeatmap);
+            document.getElementById('btn-heatmap').classList.toggle('btn-active');
+        }
+
+        window.toggleVectors = () => {
+            isVectorsEnabled = !isVectorsEnabled; dbRef('gameState/vectorsEnabled').set(isVectorsEnabled);
+            document.getElementById('btn-vectors').classList.toggle('btn-active');
+            if(!isVectorsEnabled) dbRef('gameState/vectors').remove();
+        }
+
+        window.toggleTutorial = () => {
+            isTutorialEnabled = !isTutorialEnabled; dbRef('gameState/tutorial').set(isTutorialEnabled);
+            document.getElementById('btn-tutorial').classList.toggle('btn-active');
+        }
+
+        window.toggleTheme = () => document.body.classList.toggle('theme-light');
+        window.toggleView = () => { isListMode = !isListMode; document.getElementById('results').classList.toggle('view-list'); if (!isListMode) for(let i=1; i<=10; i++) document.getElementById(`card-${i}`).style.order = 0; }
+        window.toggleMiniMode = () => { isMiniMode = !isMiniMode; document.getElementById('results').classList.toggle('mini-mode'); }
+
+        window.exportCSV = () => {
+            let csv = "Player,Name,Average,IsDead,Role,Notes\n";
+            for(let i=1; i<=10; i++) csv += `${i},${state.names[i]||''},${historyData[i]?historyData[i][historyData[i].length-1]:0},${state.dead[i]?'Yes':'No'},${state.roles[i]},"${state.notes[i]||''}"\n`;
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `mafia_stats.csv`; link.click();
+        }
+
+        function loadInitialState() {
+        dbRef('gameState').once('value', s => {
+            const st = s.val() || {};
+            if(st.isVotingPaused) togglePause(); if(st.mvpMode) toggleMVP(); if(st.overlayHidden) toggleOverlay();
+            if(st.blindMode) toggleBlindMode(); if(st.heatmap) toggleHeatmap();
+            if(st.vectorsEnabled) toggleVectors(); if(st.tutorial) toggleTutorial();
+        });
+        } // end loadInitialState
+
+        function initApp() {
+            initGrid();
+            startVotesListener();
+            startMvpListener();
+            loadInitialState();
+        }
+    </script>
+</body>
+</html>

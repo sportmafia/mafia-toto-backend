@@ -1,0 +1,3280 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Судейский Протокол (Auto & Confirm)</title>
+    <style>
+        :root {
+            --bg: #1a1a1d;
+            --panel: #2b2b2e;
+            --text: #e0e0e0;
+            --civ-red: #ff4d4d;
+            --sheriff-gold: #f1c40f;
+            --mafia-black: #999999;
+            --blue: #3498db;
+            --dead-bg: #350e12;
+            --green-ui: #27ae60;
+            --red-ui: #c3073f;
+            --orange-ui: #e67e22;
+            --purple-ui: #9b59b6;
+            --youtube-red: #ff0000;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 5px 40px;
+            padding-bottom: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* --- ВЕРХНЯЯ ПАНЕЛЬ --- */
+        .top-bar {
+            position: sticky; top: 0;
+            background: var(--panel);
+            width: 100%; max-width: 100%;
+            z-index: 100;
+            padding: 10px;
+            border-bottom: 3px solid var(--civ-red);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.7);
+            border-radius: 0 0 15px 15px;
+            display: flex; flex-direction: column; gap: 8px;
+            max-height: 75vh; 
+            overflow-y: auto; 
+            box-sizing: border-box;
+        }
+
+        .settings-row {
+            display: flex; justify-content: flex-start; align-items: center;
+            background: #111; padding: 8px; border-radius: 8px; border: 1px solid #444; flex-shrink: 0;
+            flex-wrap: wrap; gap: 8px;
+        }
+
+        .checkbox-container {
+            display: flex; align-items: center; gap: 10px;
+            font-size: 1em; font-weight: bold; color: var(--sheriff-gold); cursor: pointer;
+        }
+        .checkbox-container input { transform: scale(1.3); cursor: pointer; }
+
+        .meta-input {
+            background: #222;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 4px;
+            padding: 4px 6px;
+            font-size: 0.85em;
+            width: 100px;
+        }
+        .meta-input.meta-table {
+            width: 40px;
+            text-align: center;
+        }
+
+        .new-game-btn {
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9em;
+            margin-left: 10px;
+            transition: background 0.2s;
+        }
+        .new-game-btn:hover {
+            background: var(--blue);
+            border-color: var(--blue);
+        }
+
+        .stats-box { text-align: right; font-size: 0.9em; color: #888; }
+        .day-input { 
+            background: #222; border: 1px solid #444; color: white; 
+            width: 50px; text-align: center; font-weight: bold; border-radius: 4px;
+        }
+
+        /* --- ACCORDION --- */
+        details.phase-section {
+            background: #222; border-radius: 8px; border: 1px solid #333; overflow: hidden; transition: all 0.2s;
+        }
+        details.phase-section[open] { border-color: var(--blue); padding-bottom: 10px; }
+        summary.phase-header {
+            padding: 15px; background: #2a2a2d; cursor: pointer; font-weight: bold; font-size: 1.2em; color: #fff;
+            list-style: none; display: flex; justify-content: space-between; align-items: center;
+        }
+        summary.phase-header:hover { background: #333; }
+        summary.phase-header::after { content: "▼"; color: var(--blue); transition: transform 0.2s; font-size: 0.8em; }
+        details[open] summary.phase-header::after { transform: rotate(180deg); }
+        summary.phase-header::-webkit-details-marker { display: none; }
+
+        .sub-header {
+            color: #aaa; font-size: 0.9em; text-transform: uppercase; letter-spacing: 1px; margin: 15px 0 5px 0;
+            text-align: center; border-bottom: 1px solid #444; padding-bottom: 2px;
+        }
+
+        /* --- BUTTONS --- */
+        .btn-grid { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; padding: 10px; }
+
+        .phase-btn {
+            background: #444; color: white; border: 1px solid #555; border-radius: 8px;
+            padding: 12px 0; width: 48px; font-size: 1.2em; font-weight: bold;
+            cursor: pointer; transition: all 0.1s;
+        }
+        .phase-btn:active { transform: scale(0.95); }
+        .phase-btn:hover { background: var(--blue); border-color: var(--blue); }
+
+        .action-btn {
+            flex: 1 1 120px; padding: 15px 10px; font-size: 1em; border-radius: 8px;
+            background: #333; color: white; border: 1px solid #555; cursor: pointer; font-weight: bold;
+        }
+        .action-btn:hover { background: var(--sheriff-gold); color: black; }
+        #btn-morning:hover { background: var(--green-ui); border-color: var(--green-ui); color: white; }
+        #btn-miss:hover { background: #000000; border-color: #000000; color: white; }
+        #btn-night-phase:hover { background: var(--red-ui); border-color: var(--red-ui); color: white; }
+
+        /* Dead / Disabled Style */
+        .phase-btn.dead-btn {
+            opacity: 0.6 !important;
+            background: #333 !important;
+            border-color: #444 !important;
+            color: #888 !important;
+            cursor: not-allowed;
+        }
+
+        button:disabled {
+            opacity: 0.6 !important;
+            cursor: not-allowed;
+        }
+        
+        /* Highlight Crash Candidates (30 sec mode) */
+        .phase-btn.crash-active { 
+            background: var(--sheriff-gold); color: black; border-color: yellow; 
+            box-shadow: 0 0 10px rgba(241, 196, 15, 0.5);
+            order: -1; 
+        }
+        .phase-btn.crash-active::after {
+            content: "30s"; display: block; font-size: 0.5em; line-height: 0.8;
+        }
+
+        /* Victim Active Style (Last Speech & First Killed) */
+        .phase-btn.victim-active {
+            background: var(--red-ui); color: white; border-color: #ff5555;
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+            opacity: 1 !important;
+            pointer-events: auto !important;
+        }
+
+        /* OverRide Active Style */
+        .override-active-label {
+            color: var(--red-ui) !important;
+            text-shadow: 0 0 5px rgba(195, 7, 63, 0.5);
+        }
+
+        /* --- PRIVACY MODE STYLES --- */
+        body.privacy-active .role-select {
+            color: transparent !important;
+            background: #111 !important;
+            text-shadow: none !important;
+        }
+        body.privacy-active .check-result,
+        body.privacy-active #lhc-result,
+        body.privacy-active .night-check-result {
+            visibility: hidden !important;
+            opacity: 0 !important;
+        }
+
+        body.privacy-active .bonus-input {
+            color: transparent !important;
+            text-shadow: none !important;
+            user-select: none;
+        }
+
+        /* Исключение для Ночной панели: она всегда должна быть видна */
+        body.privacy-active .night-panel select,
+        body.privacy-active .night-panel input,
+        body.privacy-active .night-panel button {
+            color: var(--text) !important;
+            text-shadow: none !important;
+            background-color: initial !important;
+        }
+
+        .night-header-summary {
+            cursor: pointer;
+            outline: none;
+            list-style: none;
+        }
+        .night-header-summary::-webkit-details-marker {
+            display: none;
+        }
+        .night-header-summary:hover h3 {
+            color: var(--blue) !important;
+        }
+
+        .footer-meta {
+            margin-top: 40px;
+            padding: 20px;
+            text-align: center;
+            border-top: 1px solid #333;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            color: #666;
+        }
+        .footer-meta input {
+            background: #111;
+            border: 1px solid #444;
+            color: #aaa;
+            padding: 5px;
+            border-radius: 4px;
+        }
+
+        /* --- STATUS BUTTONS --- */
+        .status-btn { background: none; border: none; cursor: pointer; font-weight: bold; padding: 5px; font-size: 1em; width: 100%; text-align: center;}
+        .status-alive { color: var(--green-ui); }
+        .status-killed { color: var(--red-ui); }
+        .status-voted { color: var(--orange-ui); }
+        .status-removed { color: var(--purple-ui); border: 1px solid var(--purple-ui); background: rgba(155, 89, 182, 0.1); border-radius: 4px; }
+
+        /* --- DJ PANEL --- */
+        .dj-panel {
+            width: 100%; max-width: 100%;
+            background: #202023; border: 1px solid #333;
+            margin-top: 10px; padding: 10px; border-radius: 8px;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .yt-container { position: relative; width: 100%; padding-bottom: 56.25%; height: 0; overflow: hidden; display: none; margin-top: 10px;}
+        .yt-container.visible { display: block; }
+        .yt-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        
+        /* --- TABLE --- */
+        .table-container { width: 100%; max-width: 1250px; overflow-x: auto; margin: 20px auto; }
+        table { border-collapse: collapse; width: 100%; background: #252526; min-width: 600px; }
+        th { background: black; color: white; padding: 10px; font-size: 0.9em; position: sticky; top: 0;}
+        td { border-bottom: 1px solid #333; padding: 8px; text-align: center; vertical-align: middle; }
+        
+        input[type="text"] { background: transparent; border: none; color: white; width: 100%; font-size: 1.1em; padding: 5px; box-sizing: border-box;}
+        
+        .role-select {
+            background: #333; color: white; border: none; padding: 8px; border-radius: 4px;
+            width: 100%; max-width: 80px; font-weight: bold; font-size: 1em; cursor: pointer;
+            text-align: center;
+        }
+        .role-civilian { color: var(--civ-red); }
+        .role-sheriff { color: var(--sheriff-gold); }
+        .role-mafia { color: var(--mafia-black); }
+        .role-don { color: var(--mafia-black); }
+
+        .foul-btn { background: #333; border: 1px solid #555; color: #888; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 1em; margin: 0 2px;}
+        .foul-active { background: var(--sheriff-gold); color: black; border-color: var(--sheriff-gold); font-weight: bold; }
+        .tech-foul-active { background: var(--blue); color: white; border-color: var(--blue); font-weight: bold; }
+
+        .row-dead { background: var(--dead-bg); opacity: 0.7; }
+        .row-dead input { text-decoration: line-through; color: var(--red-ui); }
+        .row-dead .bonus-input { text-decoration: none !important; color: white !important; }
+
+        .nominate-btn { background: #444; color: #ccc; border: none; padding: 10px; border-radius: 4px; cursor: pointer; font-size: 0.9em; width: 100%;}
+        .nominate-btn.nominated { background: var(--blue); color: white; font-weight: bold; }
+        .hidden-content {
+            color: transparent !important;
+            background: #222 !important;
+            border-color: #333 !important;
+            box-shadow: none !important;
+        }
+        .hidden-content:hover {
+            opacity: 0.8;
+        }
+        .nomination-header {
+            cursor: pointer;
+        }
+        .nomination-header.hidden {
+            color: #666;
+        }
+
+        .sound-btn { background: transparent; border: 1px solid #444; color: #aaa; cursor: pointer; padding: 5px 10px; border-radius: 4px; font-size: 1.4em; }
+        .sound-btn-disabled { opacity: 0.2; pointer-events: none; }
+        
+        /* --- NIGHT PANEL --- */
+        .night-panel {
+            margin: 20px auto; width: 100%; max-width: 1250px;
+            background: #202023; border: 1px solid #444; padding: 15px; border-radius: 8px; box-sizing: border-box;
+        }
+        .night-row { display: flex; justify-content: space-between; margin-bottom: 10px; align-items: center; border-bottom: 1px solid #333; padding-bottom: 5px;}
+        .night-btn { background: #444; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px; margin-left: 5px; font-size: 1em;}
+        .night-select,
+        .night-input {
+            padding: 8px;
+            background: #222 !important;
+            color: white !important;
+            border: 2px solid #ff0000 !important;
+            border-radius: 4px;
+            width: 60px;
+            font-size: 1.1em;
+            text-align: center;
+            cursor: pointer;
+            outline: none;
+            margin-right: 10px;
+        }
+        .night-input:hover {
+            border-color: #ff5555 !important;
+            background: #333 !important;
+        }
+        .check-result { margin-left: 10px; font-weight: bold; font-size: 1.1em;}
+        .lhc-container { display: none; background: #2c3e50; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid var(--blue);}
+        .lhc-square {
+            width: 60px;
+            height: 60px;
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            background: #333 !important;
+            color: white;
+            border: 3px solid #ff0000 !important;
+            border-radius: 12px;
+            cursor: pointer;
+            outline: none;
+            margin: 0 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .lhc-square:hover {
+            background: #444 !important;
+            border-color: #ff5555 !important;
+        }
+
+        /* --- VOTING PANEL --- */
+        .voting-panel {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: #202023;
+            border-top: 3px solid var(--blue);
+            padding: 15px;
+            display: flex; flex-direction: column; align-items: center;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.8);
+            z-index: 200;
+        }
+        .voting-header { width: 100%; max-width: 1250px; margin: 0 auto 10px auto; display: flex; justify-content: space-between; align-items: center; color: #aaa; font-size: 0.9em; }
+        .candidates-container { display: flex; gap: 10px; overflow-x: auto; width: 100%; justify-content: center; padding-bottom: 5px; }
+        .candidate-card { background: #333; padding: 10px; border-radius: 6px; min-width: 90px; text-align: center; border: 2px solid #444; }
+        .candidate-card.leaving { background: var(--red-ui); border-color: #ff5555; color: white; }
+        .candidate-card.crash { background: var(--sheriff-gold); border-color: yellow; color: black; }
+        .vote-input { width: 50px; text-align: center; background: #111; border: 1px solid #555; color: white; font-size: 1.3em; margin-top: 5px; padding: 5px; border-radius: 4px; }
+        
+        .voting-blocked-msg { color: var(--purple-ui); font-size: 1.2em; font-weight: bold; padding: 15px; text-align: center; width: 100%; text-shadow: 0 0 10px rgba(155, 89, 182, 0.3); }
+
+        .shootout-btn {
+            background: var(--orange-ui); color: white; border: none;
+            padding: 5px 15px; border-radius: 4px; cursor: pointer; font-weight: bold;
+            display: none; 
+            margin-right: 10px;
+            animation: pulse 2s infinite;
+        }
+        .finish-vote-btn {
+            background: var(--red-ui); color: white; border: 1px solid #ff5555;
+            padding: 5px 15px; border-radius: 4px; cursor: pointer; font-weight: bold;
+            margin-left: 10px;
+        }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+
+        /* --- MODAL FOR LIFT --- */
+        .modal {
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.8); backdrop-filter: blur(5px);
+            align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background-color: #2b2b2e; border: 1px solid #444; border-radius: 10px;
+            padding: 20px; width: 90%; max-width: 500px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); text-align: center;
+        }
+        .modal h3 { color: var(--sheriff-gold); margin-top: 0; }
+        .lift-voters-grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 15px 0; }
+        .lift-voter-btn {
+            width: 40px; height: 40px; border-radius: 50%; border: 2px solid #555;
+            background: #222; color: #aaa; font-weight: bold; cursor: pointer;
+        }
+        .lift-voter-btn.active {
+            background: var(--blue); color: white; border-color: var(--blue); box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+        }
+        .lift-input {
+            width: 80px; text-align: center; padding: 10px; font-size: 1.5em; 
+            background: #111; color: white; border: 1px solid #555; border-radius: 5px; margin: 10px 0;
+        }
+        .modal-footer { margin-top: 20px; display: flex; justify-content: space-between; }
+        .modal-btn {
+            padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; color: white;
+        }
+
+        .game-over-title { font-size: 1.4em; font-weight: bold; margin: 0 0 10px 0; }
+        .game-over-mafia { background: #3a141a; border: 1px solid #5c1f28; }
+        .game-over-city { background: var(--civ-red); border: 1px solid #ff7777; }
+
+        .bonus-btn {
+            background: #222; color: white; border: 1px solid #444; border-radius: 4px;
+            width: 26px; height: 26px; cursor: pointer; font-weight: bold;
+        }
+        .bonus-input {
+            width: 60px; text-align: center; background: #111; border: 1px solid #555; color: white;
+            font-size: 1em; padding: 4px; border-radius: 4px;
+        }
+
+        .note-btn {
+            background: #222; color: white; border: 1px solid #444; border-radius: 4px;
+            padding: 6px 10px; cursor: pointer;
+        }
+
+        .note-textarea {
+            width: 100%; height: 225px; resize: none; background: #111; color: white;
+            border: 1px solid #555; border-radius: 6px; padding: 10px; box-sizing: border-box;
+        }
+
+        #note-modal .modal-content {
+            max-width: 750px;
+        }
+
+        .history-section {
+            width: 100%; background: #202023; border: 1px solid #333; margin-top: 20px;
+            padding: 15px; border-radius: 8px; box-sizing: border-box;
+        }
+        .history-card {
+            background: #2b2b2e; border: 1px solid #444; border-radius: 8px; padding: 10px;
+            margin-bottom: 10px;
+        }
+        .history-title { font-weight: bold; color: var(--sheriff-gold); margin-bottom: 6px; }
+        .history-meta { color: #aaa; font-size: 0.9em; margin-bottom: 6px; }
+        .history-list { font-size: 0.9em; color: #ddd; }
+        .history-list div {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            max-width: 100%;
+        }
+
+        .history-header {
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .history-copy-btn {
+            background: #333; color: white; border: 1px solid #555; border-radius: 6px;
+            padding: 6px 10px; cursor: pointer; font-weight: bold;
+        }
+
+        /* --- NUMPAD MODAL --- */
+        .numpad-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 10px 0; }
+        .numpad-btn { background: #333; color: white; border: 1px solid #555; border-radius: 6px; padding: 12px 0; font-size: 1.1em; cursor: pointer; }
+        .numpad-footer { display: flex; justify-content: space-between; gap: 10px; margin-top: 10px; }
+
+        /* --- MANUAL TIMER --- */
+        #manual-timer {
+            display: flex; align-items: center; gap: 8px;
+            background: transparent; border: none; border-radius: 0; padding: 0;
+        }
+        #manual-timer .time-display { font-size: 1.5em; font-weight: bold; color: white; min-width: 60px; }
+        #manual-timer .timer-warning { color: var(--red-ui); }
+        #manual-timer .timer-controls { display: flex; gap: 4px; }
+        #manual-timer .timer-btn { background: #333; color: white; border: 1px solid #555; border-radius: 6px; padding: 4px 6px; cursor: pointer; font-weight: bold; }
+
+        body.game-over .phase-btn,
+        body.game-over .action-btn {
+            pointer-events: none;
+            opacity: 0.4;
+        }
+
+        .phase-action-label {
+            font-size: 1.3em;
+            font-weight: bold;
+            text-align: center;
+            padding: 10px 0;
+            color: #fff;
+        }
+
+        .phase-select {
+            background: #111; color: white; border: 1px solid #555;
+            padding: 6px 8px; border-radius: 6px; font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="lift-modal" class="modal">
+        <div class="modal-content">
+            <h3>⚖️ Кто голосует за ПОДЪЕМ?</h3>
+            <p style="color:#aaa; font-size:0.9em; margin-bottom:10px;">
+                Кандидаты: <b id="lift-candidates-names" style="color:var(--red-ui)">-</b><br>
+                Нужно голосов: > <span id="lift-threshold">0</span>
+            </p>
+            <input type="number" id="lift-count-input" class="lift-input" value="0" min="0" max="10" oninput="syncLiftButtons(false)">
+            <div style="margin: 10px 0; color:#666">- ИЛИ НАЖМИТЕ -</div>
+            <div id="lift-voters-grid" class="lift-voters-grid"></div>
+            <div class="modal-footer">
+                <button class="modal-btn" style="background:#555" onclick="closeLiftModal()">Отмена</button>
+                <button class="modal-btn" style="background:var(--red-ui)" onclick="confirmLift()">Подтвердить</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-over-modal" class="modal">
+        <div id="game-over-content" class="modal-content">
+            <div class="game-over-title">🏆 Победа!</div>
+            <div id="game-over-text" style="margin:10px 0; font-weight:bold;"></div>
+            <div class="modal-footer">
+                <button class="modal-btn" style="background:var(--blue)" onclick="confirmNewGame()">Сохранить и начать новую игру</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="note-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="note-title">Заметка (Игрок -)</h3>
+            <textarea id="note-input" class="note-textarea" placeholder="Например: вскрылся лже-шерифом..."></textarea>
+            <div class="modal-footer">
+                <button class="modal-btn" style="background:var(--blue)" onclick="closeNoteModal()">Вернуться к игре</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="top-bar">
+        <div class="settings-row">
+            <button class="new-game-btn" onclick="window.location.href='index.html'" style="background:#555; border-color:#777;">← Назад</button>
+            <label class="checkbox-container">
+                <input type="checkbox" id="auto-mode-checkbox" checked onchange="toggleAutoMode()">
+                <span>🔄 Авто</span>
+            </label>
+            <label class="checkbox-container">
+                <input type="checkbox" id="confirm-mode-checkbox" onchange="toggleConfirmMode()">
+                <span>⚠️ Подтверждение</span>
+            </label>
+            <label class="checkbox-container" id="override-label">
+                <input type="checkbox" id="override-mode-checkbox" onchange="toggleOverrideMode()">
+                <span>🛠️ OverRide</span>
+            </label>
+            <label class="checkbox-container">
+                <input type="checkbox" id="privacy-mode-checkbox" onchange="togglePrivacyMode()">
+                <span>👁️ Скрыть</span>
+            </label>
+
+            <button class="new-game-btn" onclick="confirmNewGame()">🆕 Новая игра</button>
+            <button class="action-btn" style="padding:5px 10px; font-size:0.9em;" onclick="downloadBackup()">💾 Бэкап</button>
+            <button class="action-btn" style="padding:5px 10px; font-size:0.9em;" onclick="triggerRestore()">📂 Загрузить</button>
+            <input type="file" id="restore-input" style="display:none" onchange="restoreBackup(this)">
+            <div id="mp-judge-panel" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; background:#111; border:1px solid #444; border-radius:8px; padding:6px 8px;">
+                <button class="new-game-btn" id="mp-create-room-btn" style="margin-left:0; background:#1b5e20; border-color:#2e7d32;">🚀 Начать игру</button>
+                <span id="mp-room-label" style="font-weight:bold; color:#fff; min-width:90px;">Room: —</span>
+                <span id="mp-conn-status" style="font-weight:bold; color:#bbb;">🔴 Нет связи</span>
+                <label style="display:flex; align-items:center; gap:4px; color:#bbb; font-size:0.85em;">
+                    QR место:
+                    <select id="mp-seat-select" class="meta-input meta-table" style="width:58px;">
+                        <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+                        <option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option>
+                    </select>
+                </label>
+                <button class="new-game-btn" id="mp-copy-link-btn" style="margin-left:0;">🔗 Копировать ссылку</button>
+                
+                <button onclick="window.open('remote.html', 'RemoteControl', 'width=450,height=650,top=100,left=100,resizable=yes,scrollbars=yes')" 
+                        class="new-game-btn" style="margin-left:auto; background: #9b59b6; border-color: #8e44ad;">
+                    🎛️ Открыть Пульт
+                </button>
+            </div>
+
+            <div style="display:flex; gap:10px; align-items:center; margin-left:auto;">
+                <div class="stats-box">
+                    Живых: <b id="alive-count" style="color:white">10</b> |
+                    <span id="phase-label">Ночь</span>: <input type="number" id="day-number" class="day-input" value="0" min="0" onchange="updateDayManual(this.value)">
+                </div>
+                <div class="stats-box" style="text-align:center;">
+                    Фаза: 
+                    <select id="phase-select" class="phase-select" onchange="onPhaseSelectChange(this.value)">
+                        <option value="PHASE_ROLES">Роли</option>
+                        <option value="PHASE_DAY_SPEECH">Речи 60 сек</option>
+                        <option value="PHASE_VOTING">Голосование</option>
+                        <option value="PHASE_TIE_SPEECH">Перестрелка 30 сек</option>
+                        <option value="PHASE_LAST_WORD">Последнее слово</option>
+                        <option value="PHASE_NIGHT">Кого убили?</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="phase-section" style="padding:5px; border:none; background:transparent; display:flex; flex-direction:column; gap:5px;">
+            <div class="btn-grid" style="padding:0;">
+                <button class="action-btn" onclick="playVideoByIdSafe('KP8VcPFS_Fc', 'Посадка', false)">🛬 Посадка</button>
+                <button id="btn-agreement" class="action-btn" onclick="playVideoByIdSafe('cqlPQdbSe1k', 'Договорка', false)">🤝 Договорка</button>
+                <button id="btn-shot" class="action-btn" style="color:var(--red-ui); border-color:var(--red-ui)" onclick="playVideoByIdSafe('lBHtijeYn5Y', 'Стрельба', false)">🔫 Стрельба</button>
+            </div>
+            <div class="btn-grid" style="padding:0;">
+                <button id="btn-morning" class="action-btn" style="background:#444; border-color:#555;" onclick="playGoodMorning()">☀️ Доброе утро</button>
+                <button id="btn-miss" class="action-btn" onclick="playVideoByIdSafe('mTHn8ZfhC4o', 'ПРОМАХ', false)">❌ ПРОМАХ</button>
+                <button id="btn-night-phase" class="action-btn" style="background:#222; border-color:#555;" onclick="startNightPhase()">🌙 Ночь</button>
+            </div>
+        </div>
+
+        <div class="phase-section" id="context-panel" style="padding:10px;">
+            <div id="phase-action-label" class="phase-action-label">🎯 Выберите действие</div>
+            <div id="btn-group-phase" class="btn-grid"></div>
+        </div>
+    </div>
+
+    <div class="dj-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <b style="color:var(--youtube-red)">▶ DJ Console (Direct IDs)</b>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <button class="phase-btn" style="width:auto; padding:5px 15px; background:var(--sheriff-gold); color:black; border-color:yellow;" onclick="skipToNextPlayer()">⏩ Завершить</button>
+                <div id="manual-timer">
+                    <div id="manual-timer-display" class="time-display">01:00</div>
+                    <div class="timer-controls">
+                        <button class="timer-btn" onclick="startManualTimer()">▶</button>
+                        <button class="timer-btn" onclick="stopManualTimer()">⏸</button>
+                        <button class="timer-btn" onclick="resetManualTimer()">↻</button>
+                    </div>
+                </div>
+                <button class="phase-btn" style="width:auto; padding:5px 10px;" onclick="toggleVideo()">📺 Видео</button>
+            </div>
+        </div>
+        <div id="player-container" class="yt-container">
+            <div id="player"></div>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:30px">#</th>
+                    <th>Никнейм</th>
+                    <th style="width:40px">DJ</th> 
+                    <th style="width:80px">Роль</th>
+                    <th>Фолы</th>
+                    <th>Тех. фол</th>
+                    <th>Бонус</th>
+                    <th style="width:60px">Инфо</th>
+                    <th style="width:80px" id="nomination-header" class="nomination-header" onclick="toggleNominationVisibility()">Номинация</th>
+                    <th style="width:80px">Статус</th>
+                </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+        </table>
+    </div>
+
+    <details class="night-panel" id="night-phase-details" open>
+        <summary class="night-header-summary">
+            <h3 style="margin:0; display:inline-block; color:#888">🌙 Ночная фаза (Нажми, чтобы скрыть)</h3>
+        </summary>
+        <div style="margin-top: 15px;">
+        <div class="lhc-container" id="lhc-block">
+            <h4 style="margin:0 0 10px 0; color:var(--blue)">🎯 Лучший ход</h4>
+            <div style="margin-bottom: 10px;">Первый убитый: <b>№ <span id="first-killed-id">-</span></b></div>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <input type="text" readonly class="lhc-square" id="lhc-1" value="" placeholder="" onclick="openNumpad('lhc-1')">
+                <input type="text" readonly class="lhc-square" id="lhc-2" value="" placeholder="" onclick="openNumpad('lhc-2')">
+                <input type="text" readonly class="lhc-square" id="lhc-3" value="" placeholder="" onclick="openNumpad('lhc-3')">
+                <button class="night-btn" style="background:var(--green-ui); height: 50px;" onclick="checkBestMove()">Записать</button>
+            </div>
+            <div style="margin-top:5px;"><span id="lhc-result" class="night-check-result"></span></div>
+        </div>
+        <div class="night-row">
+            <span><b style="color:var(--sheriff-gold)">✡ Шериф</b> проверяет:</span>
+            <div>
+                <input type="text" readonly id="sheriff-check-input" class="night-input" value="0" onclick="openNumpad('sheriff-check-input')">
+                <button class="night-btn" onclick="doSheriffCheck()">Check</button>
+                <span id="sheriff-res" class="check-result night-check-result"></span>
+            </div>
+        </div>
+        <div class="night-row">
+            <span>🎩 <b style="color:var(--mafia-black)">Дон</b> ищет Шерифа:</span>
+            <div>
+                <input type="text" readonly id="don-check-input" class="night-input" value="0" onclick="openNumpad('don-check-input')">
+                <button class="night-btn" onclick="doDonCheck()">Check</button>
+                <span id="don-res" class="check-result night-check-result"></span>
+            </div>
+        </div>
+        <div class="night-row">
+            <span>🔫 <b style="color:var(--red-ui)">Мафия</b> стреляет:</span>
+            <div>
+                <input type="text" readonly id="shot-input" class="night-input" value="0" onclick="openNumpad('shot-input')">
+                <button class="night-btn" style="background:var(--red-ui)" onclick="commitShot()">Убить</button>
+            </div>
+        </div>
+        <button onclick="nextDay()" class="night-btn" style="background:var(--blue); width:100%; margin-top:10px; padding:10px;">
+            🌅 Начать новый день
+        </button>
+        </div>
+    </details>
+
+    <div class="voting-panel">
+        <div class="voting-header">
+            <span>Выставлено: <b id="nom-count">0</b></span>
+            
+            <div style="display:flex; align-items:center;">
+                <span style="margin-right:15px;">Голосов: <b id="votes-sum">0</b> / <span id="votes-max">10</span></span>
+                <button id="shootout-btn" class="shootout-btn" onclick="startShootout()">🔁 Повтор голосования</button>
+                <button onclick="clearNominations()" style="background:#555; border:none; color:white; padding:5px 10px; border-radius:3px; cursor:pointer;">Очистить</button>
+                <button onclick="finishVoting()" class="finish-vote-btn">🗳️ Завершить голосование</button>
+            </div>
+        </div>
+        <div class="candidates-container" id="candidates-container">
+            <div style="color:#666; padding:10px;">Нет кандидатур</div>
+        </div>
+    </div>
+
+    <details class="phase-section" id="history-container" style="margin-top:20px;">
+        <summary class="phase-header">
+            <span>📜 История игр</span>
+            <button class="history-copy-btn" style="background:var(--red-ui); border-color:var(--red-ui); margin-right:10px;" onclick="event.preventDefault(); event.stopPropagation(); clearHistory()">🗑️ Стереть всё</button>
+            <button class="history-copy-btn" style="background:var(--green-ui); border-color:var(--green-ui);" onclick="event.preventDefault(); event.stopPropagation(); exportHistoryToCSV()">📊 Скачать CSV</button>
+            <button class="history-copy-btn" onclick="event.preventDefault(); event.stopPropagation(); copyHistoryToClipboard()">📋 Скопировать отчет</button>
+        </summary>
+        <div id="history-list" style="padding:10px;"></div>
+    </details>
+
+    <div class="phase-section" style="padding:10px; margin-top:12px;">
+        <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-start;">
+            <div>
+                <div style="color:#aaa; margin-bottom:6px; font-size:0.9em;">QR для выбранного места</div>
+                <div id="mp-qr" style="background:#1b1b1b; border:1px solid #333; border-radius:8px; padding:10px; min-width:180px; min-height:180px; display:flex; align-items:center; justify-content:center; color:#666;">QR появится после старта</div>
+            </div>
+            <div style="flex:1; min-width:260px;">
+                <div style="color:#aaa; margin-bottom:6px; font-size:0.9em;">Онлайн игроки (presence)</div>
+                <div id="mp-presence" style="background:#151515; border:1px solid #333; border-radius:8px; padding:10px; line-height:1.5; color:#ccc;">—</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-meta">
+        <input type="text" id="meta-tournament" placeholder="Турнир" oninput="saveState()">
+        <input type="text" id="meta-judge" placeholder="Судья" oninput="saveState()">
+        <input type="number" id="meta-table" placeholder="Стол" oninput="saveState()">
+    </div>
+
+    <div id="numpad-modal" class="modal">
+        <div class="modal-content">
+            <h3>🔢 Ввод номера</h3>
+            <div class="numpad-grid">
+                <button class="numpad-btn" onclick="applyNumpadValue(1)">1</button>
+                <button class="numpad-btn" onclick="applyNumpadValue(2)">2</button>
+                <button class="numpad-btn" onclick="applyNumpadValue(3)">3</button>
+                <button class="numpad-btn" onclick="applyNumpadValue(4)">4</button>
+                <button class="numpad-btn" onclick="applyNumpadValue(5)">5</button>
+                <button class="numpad-btn" onclick="applyNumpadValue(6)">6</button>
+                <button class="numpad-btn" onclick="applyNumpadValue(7)">7</button>
+                <button class="numpad-btn" onclick="applyNumpadValue(8)">8</button>
+                <button class="numpad-btn" onclick="applyNumpadValue(9)">9</button>
+                <button class="numpad-btn" onclick="applyNumpadValue(10)">10</button>
+            </div>
+            <div class="numpad-footer">
+                <button class="modal-btn" style="background:#555" onclick="applyNumpadValue(0)">Сброс/Пусто</button>
+                <button class="modal-btn" style="background:var(--blue)" onclick="closeNumpad()">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="sync.js"></script>
+<script>
+    // === 1. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И ИНИЦИАЛИЗАЦИЯ (СТРОГО В НАЧАЛЕ) ===
+    const videoMap = {
+        roles: ['2zDW3CYn2KU', 'AdmZdbmmy8c', 'MRLnc_Z-aA4', 'NKdtnHuTdfs', 'OI6VK8V3_dY', 'BN9Q8CEKLcQ', 'kIB_E9rZg6U', '8jGjV6yhhbc', 'TUbjLXZBQ_w', 'Ta9ofnmDjfU'],
+        speech60: ['S8M9BkA2ik0', 'OsiW0eH0DK4', 'pQ4qm0GJUxo', 'gAed9TDmv7U', 'NpXIHtJ-naw', 'Mt--XA0jGHY', 'J1Lslq8kq-0', 'KRPE_xZ4hvY', 'hVcxfqflows', 'TClA9NmwQ_Q'],
+        speech30: ['tBytvcvrHr8', 'MhX17CavFB4', 'w1-etNEvP5M', 'Sn8FLR2xSXk', 'V2Deg9kM94Y', '4vZjW-30gl4', 'gVx5pivpx0g', 'qYiX2YxR1gE', 'hdsI8uZiEF4', 'SkXaqhi2P4M'],
+        firstKilledSpecific: ['Bk_StPmyG3w', 'XnBQCJeWEP8', 'RI9HDRymbzQ', 'FQZ_EjyTLTQ', 'Jyi96vf6SEs', 'bOYYiwbDMjg', 'qIcbpKeMc5k', '84HoPYL1Jqg', 'kA0Bz3PYY18', 'JPkASRM0bHY'],
+        lastSpeech: ['jx_rQwcidoA', 'JkaOvlC8Fm0', 'IUubFHP7dTs', 'sG9DQz-Z4Io', 'RcWYH2A-qsA', 'NLGmrJDav8k', 'EKY-JiTL5GI', '8viDANLllxk', 'XZ1VknWfNWM', '2bDgwvNgh_c']
+    };
+
+    const PHASE_ROLES = 'PHASE_ROLES';
+    const PHASE_AGREEMENT = 'PHASE_AGREEMENT';
+    const PHASE_DAY_SPEECH = 'PHASE_DAY_SPEECH';
+    const PHASE_VOTING = 'PHASE_VOTING';
+    const PHASE_TIE_SPEECH = 'PHASE_TIE_SPEECH';
+    const PHASE_LAST_WORD = 'PHASE_LAST_WORD';
+    const PHASE_NIGHT = 'PHASE_NIGHT';
+
+    const PLAYERS_COUNT = 10;
+    function buildDefaultPlayers() {
+        const result = [];
+        for (let i = 1; i <= PLAYERS_COUNT; i++) {
+            result.push({
+                id: i,
+                role: 'civilian',
+                fouls: 0,
+                techFouls: 0,
+                bonus: 0.0,
+                notes: "",
+                status: 'alive',
+                nominationOrder: null
+            });
+        }
+        return result;
+    }
+
+    let players = buildDefaultPlayers();
+
+    let activeGroupKey = null; 
+    let activePlayerId = null;
+    let isConfirmMode = false;
+    let isOverrideMode = false; 
+    let isAutoMode = true; // DEFAULT ON
+    let crashIds = []; 
+    let currentCrashIndex = 0; 
+    let dayNumber = 0; 
+    let currentDayOpener = 1; 
+    let speechHasStarted = false; 
+    let lastPlayedVideoId = null;
+    let nightKilledId = null; 
+    let firstKilled = null;
+    let currentTieCandidates = [];
+    let votingQueue = [];
+    let votedVictimId = null;
+    
+    // Новые переменные для логики
+    let lastActiveDayPlayer = null; 
+    let nightActionTaken = false; 
+    let skippedVotingDays = 0; 
+    let currentGamePhase = PHASE_NIGHT;
+    let dayAdvancedByMorning = false;
+    let lastWordQueue = [];
+    let lastWordIndex = 0;
+    let lastWordNextPhase = PHASE_DAY_SPEECH;
+    let tieSpeechQueue = [];
+    let tieSpeechIndex = 0;
+    let nightShotVictimId = null;
+    let overrideAutoBlock = false;
+    let gameOver = false;
+    let gameCount = 0;
+    let currentNotePlayerId = null;
+    let lastWinner = null;
+    let lastWinReason = null;
+    let gameHistory = [];
+    let activeNumpadTargetId = null;
+    let manualTimerDuration = 60;
+    let manualTimerRemaining = 60;
+    let manualTimerInterval = null;
+    let consecutivePeacefulNights = 0;
+    let isNominationHidden = false;
+
+    const STORAGE_KEY = 'mafia_judge_state';
+
+    // === 2. ФУНКЦИИ ===
+
+    function toggleConfirmMode() { isConfirmMode = document.getElementById('confirm-mode-checkbox').checked; }
+    function toggleAutoMode() { isAutoMode = document.getElementById('auto-mode-checkbox').checked; }
+    
+    function toggleOverrideMode() { 
+        isOverrideMode = document.getElementById('override-mode-checkbox').checked;
+        const label = document.getElementById('override-label');
+        if(isOverrideMode) label.classList.add('override-active-label');
+        else label.classList.remove('override-active-label');
+        renderPhaseButtons();
+        updateRoleBalanceUI();
+    }
+
+    function togglePrivacyMode() {
+        const isPrivacy = document.getElementById('privacy-mode-checkbox').checked;
+        if (isPrivacy) document.body.classList.add('privacy-active');
+        else document.body.classList.remove('privacy-active');
+    }
+
+    function toggleNominationVisibility() {
+        isNominationHidden = !isNominationHidden;
+        const header = document.getElementById('nomination-header');
+        if (header) {
+            header.classList.toggle('hidden', isNominationHidden);
+            header.textContent = isNominationHidden ? 'Номинация (скрыто)' : 'Номинация';
+        }
+        renderTable();
+    }
+
+    function enablePrivacyMode() {
+        const checkbox = document.getElementById('privacy-mode-checkbox');
+        if (checkbox) checkbox.checked = true;
+        togglePrivacyMode();
+    }
+
+    function updatePhaseLabel() {
+        const label = document.getElementById('phase-label');
+        if (!label) return;
+        const isNight = currentGamePhase === PHASE_NIGHT || currentGamePhase === PHASE_ROLES || currentGamePhase === PHASE_AGREEMENT;
+        label.textContent = isNight ? 'Ночь' : 'День';
+    }
+
+    function syncPhaseSelect() {
+        const select = document.getElementById('phase-select');
+        if (select) select.value = currentGamePhase;
+    }
+
+    function setGamePhase(phase) {
+        currentGamePhase = phase;
+        updatePhaseLabel();
+        updatePhaseActionLabel();
+        renderPhaseButtons();
+        syncPhaseSelect();
+        stopManualTimer();
+
+        const nightDetails = document.getElementById('night-phase-details');
+        if (nightDetails) {
+            if (phase === PHASE_NIGHT || phase === PHASE_ROLES || phase === PHASE_AGREEMENT) {
+                nightDetails.open = true;
+            } else if (phase === PHASE_DAY_SPEECH || phase === PHASE_VOTING || phase === PHASE_TIE_SPEECH || phase === PHASE_LAST_WORD) {
+                nightDetails.open = false;
+            }
+        }
+
+        updateRoleBalanceUI();
+        saveState();
+    }
+
+    function onPhaseSelectChange(phase) {
+        setGamePhase(phase);
+    }
+
+    function getDayOpener(dayNum) {
+        if (dayNum <= 0) return 1;
+        return ((dayNum - 1) % 10) + 1;
+    }
+
+    function advanceToDay(isAuto = false, options = {}) {
+        const { preserveNightData = false, silent = false } = options;
+        dayNumber++;
+        document.getElementById('day-number').value = dayNumber;
+        document.getElementById('sheriff-res').innerText = "";
+        document.getElementById('don-res').innerText = "";
+        document.getElementById('shot-input').value = 0;
+        clearNominations();
+        crashIds = []; currentCrashIndex = 0;
+        currentDayOpener = getDayOpener(dayNumber);
+        speechHasStarted = false;
+        lastActiveDayPlayer = null;
+        nightActionTaken = false;
+        votedVictimId = null;
+        if (!preserveNightData) nightKilledId = null;
+        nightShotVictimId = null;
+        tieSpeechQueue = [];
+        tieSpeechIndex = 0;
+        lastWordQueue = [];
+        lastWordIndex = 0;
+        setGamePhase(PHASE_DAY_SPEECH);
+
+        if (skippedVotingDays > 0) {
+            skippedVotingDays--;
+            if (!silent && !isAuto) {
+                if (skippedVotingDays > 0) alert(`Новый день. Голосование всё ещё отменено (осталось: ${skippedVotingDays})`);
+                else alert(`Новый день. Право на голосование возвращено!`);
+            }
+        } else if (!silent && !isAuto) {
+            alert(`День ${dayNumber} начался!`);
+        }
+
+        renderPhaseButtons();
+        renderVotingPanel();
+    }
+
+    function updatePhaseActionLabel() {
+        const label = document.getElementById('phase-action-label');
+        if (!label) return;
+        let text = '🎯 Выберите действие';
+        if (currentGamePhase === PHASE_ROLES) text = '🎭 Выберите игрока для выбора роли';
+        if (currentGamePhase === PHASE_AGREEMENT) text = '🤝 Договорка — кнопки отключены';
+        if (currentGamePhase === PHASE_DAY_SPEECH) {
+            text = `🗣️ Речь (День ${dayNumber})`;
+            if (activeGroupKey === 'speech60' && activePlayerId) text = `🗣️ Речь (День ${dayNumber}) — Игрок ${activePlayerId}`;
+        }
+        if (currentGamePhase === PHASE_VOTING) text = '🗳️ Голосование — используйте панель голосования';
+        if (currentGamePhase === PHASE_TIE_SPEECH) {
+            const tid = tieSpeechQueue[tieSpeechIndex];
+            text = tid ? `🔫 Перестрелка 30 сек — Игрок ${tid}` : '🔫 Перестрелка 30 сек — нет кандидатов';
+        }
+        if (currentGamePhase === PHASE_LAST_WORD) {
+            const lid = lastWordQueue[lastWordIndex];
+            text = lid ? `💀 Последнее слово (Игрок ${lid})` : '💀 Последнее слово — нет игроков';
+        }
+        if (currentGamePhase === PHASE_NIGHT) text = '☠️ Выберите, в кого стреляет мафия';
+        label.textContent = text;
+    }
+
+    function getExpectedDaySpeaker() {
+        if (!speechHasStarted) return getCorrectDayStarter();
+        if (lastActiveDayPlayer !== null) return getNextAliveFrom(lastActiveDayPlayer);
+        return getCorrectDayStarter();
+    }
+
+    function getAllowedIdsForPhase() {
+        if (isOverrideMode) return Array.from({ length: 10 }, (_, i) => i + 1);
+        if (currentGamePhase === PHASE_AGREEMENT || currentGamePhase === PHASE_VOTING) return [];
+        if (currentGamePhase === PHASE_ROLES) return Array.from({ length: 10 }, (_, i) => i + 1);
+        if (currentGamePhase === PHASE_NIGHT) {
+            return players.filter(p => p.status === 'alive').map(p => p.id);
+        }
+        if (currentGamePhase === PHASE_DAY_SPEECH) {
+            const expected = getExpectedDaySpeaker();
+            const allowed = [];
+            if (expected) allowed.push(expected);
+            if (activeGroupKey === 'speech60' && activePlayerId) allowed.push(activePlayerId);
+            return Array.from(new Set(allowed));
+        }
+        if (currentGamePhase === PHASE_TIE_SPEECH) {
+            const expected = tieSpeechQueue[tieSpeechIndex];
+            const allowed = [];
+            if (expected) allowed.push(expected);
+            if (activeGroupKey === 'speech30' && activePlayerId === expected) {
+                const next = tieSpeechQueue[tieSpeechIndex + 1];
+                if (next) allowed.push(next);
+            }
+            return Array.from(new Set(allowed));
+        }
+        if (currentGamePhase === PHASE_LAST_WORD) {
+            const expected = lastWordQueue[lastWordIndex];
+            const allowed = [];
+            if (expected) allowed.push(expected);
+            if (activeGroupKey === 'lastSpeech' && activePlayerId === expected) {
+                const next = lastWordQueue[lastWordIndex + 1];
+                if (next) allowed.push(next);
+            }
+            return Array.from(new Set(allowed));
+        }
+        return [];
+    }
+
+    function renderPhaseButtons() {
+        const container = document.getElementById('btn-group-phase');
+        if (!container) return;
+        container.innerHTML = '';
+        const allowed = getAllowedIdsForPhase();
+        const lastWordTarget = currentGamePhase === PHASE_LAST_WORD ? lastWordQueue[lastWordIndex] : null;
+        for (let i = 1; i <= 10; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'phase-btn';
+            btn.innerText = i;
+            btn.id = `btn-phase-${i}`;
+            const isAllowed = allowed.includes(i);
+            const isAlive = players.find(p => p.id === i)?.status === 'alive';
+            if (gameOver || (!isOverrideMode && (!isAllowed || (currentGamePhase !== PHASE_LAST_WORD && currentGamePhase !== PHASE_ROLES && !isAlive && currentGamePhase !== PHASE_TIE_SPEECH)))) {
+                btn.classList.add('dead-btn');
+                btn.style.pointerEvents = 'none';
+            }
+            if (lastWordTarget === i) {
+                btn.classList.add('victim-active');
+            }
+            btn.onclick = function() { onPhaseButtonClick(i); };
+            container.appendChild(btn);
+        }
+        updatePhaseActionLabel();
+    }
+
+    function checkRoleBalance() {
+        const counts = { civilian: 0, mafia: 0, don: 0, sheriff: 0 };
+        players.forEach(p => {
+            if (counts[p.role] !== undefined) counts[p.role] += 1;
+        });
+        return players.length === PLAYERS_COUNT
+            && counts.mafia === 2
+            && counts.don === 1
+            && counts.sheriff === 1
+            && counts.civilian === 6;
+    }
+
+    function setActionControlsDisabled(disabled) {
+        const ids = ['btn-agreement', 'btn-shot', 'btn-morning', 'btn-night-phase', 'btn-miss'];
+        ids.forEach(id => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.disabled = disabled;
+            btn.style.opacity = disabled ? '0.5' : '1';
+            btn.style.pointerEvents = disabled ? 'none' : '';
+        });
+        const phaseSelect = document.getElementById('phase-select');
+        if (phaseSelect) {
+            phaseSelect.disabled = disabled;
+            phaseSelect.style.opacity = disabled ? '0.5' : '1';
+            phaseSelect.style.pointerEvents = disabled ? 'none' : '';
+        }
+    }
+
+    function updateRoleBalanceUI() {
+        if (isOverrideMode) {
+            setActionControlsDisabled(false);
+            updatePhaseActionLabel();
+            return true;
+        }
+        const isValid = checkRoleBalance();
+        const label = document.getElementById('phase-action-label');
+        if (!isValid) {
+            if (currentGamePhase === PHASE_ROLES && label) {
+                label.textContent = '❌ Неверный состав! (Нужно: 2 Маф, 1 Дон, 1 Шер)';
+            }
+            setActionControlsDisabled(true);
+            return false;
+        }
+        if (currentGamePhase === PHASE_ROLES && label) {
+            label.textContent = '✅ Состав верен. Можно начинать Договорку';
+        }
+        setActionControlsDisabled(false);
+        return true;
+    }
+
+    function cycleRole(id) {
+        const p = players.find(x => x.id === id);
+        if (!p) return;
+        const counts = { mafia: 0, don: 0, sheriff: 0 };
+        players.forEach(pl => {
+            if (pl.role !== 'civilian' && counts[pl.role] !== undefined) counts[pl.role] += 1;
+        });
+
+        const limits = { mafia: 2, don: 1, sheriff: 1 };
+        const order = ['civilian', 'mafia', 'don', 'sheriff'];
+        const currentIdx = order.indexOf(p.role);
+
+        for (let i = 1; i <= order.length; i += 1) {
+            const nextIdx = (currentIdx + i) % order.length;
+            const candidateRole = order[nextIdx];
+            if (candidateRole === 'civilian') {
+                p.role = candidateRole;
+                break;
+            }
+            if (counts[candidateRole] < limits[candidateRole]) {
+                p.role = candidateRole;
+                break;
+            }
+        }
+        renderTable();
+        updateRoleBalanceUI();
+    }
+
+    function onPhaseButtonClick(id) {
+        if (gameOver) return;
+        if (currentGamePhase === PHASE_ROLES) {
+            playGroup('roles', id, false);
+            return;
+        }
+        if (currentGamePhase === PHASE_DAY_SPEECH) {
+            handleDaySpeechClick(id);
+            return;
+        }
+        if (currentGamePhase === PHASE_TIE_SPEECH) {
+            handleTieSpeechClick(id);
+            return;
+        }
+        if (currentGamePhase === PHASE_LAST_WORD) {
+            handleLastWordClick(id);
+            return;
+        }
+        if (currentGamePhase === PHASE_NIGHT) {
+            handleNightShotClick(id);
+            return;
+        }
+    }
+
+    function handleDaySpeechClick(id) {
+        if (isOverrideMode) {
+            playGroup('speech60', id, false);
+            speechHasStarted = true;
+            setGamePhase(PHASE_DAY_SPEECH);
+            return;
+        }
+        const expected = getExpectedDaySpeaker();
+        if (!expected) return;
+        if (id !== expected && id !== activePlayerId) {
+            alert(`⛔ Нарушение порядка! Следующий по очереди: Игрок №${expected}`);
+            return;
+        }
+        if (activeGroupKey === 'speech60' && activePlayerId === id) {
+            if (expected && expected !== id) {
+                playGroup('speech60', expected, false);
+                speechHasStarted = true;
+            }
+            return;
+        }
+        playGroup('speech60', id, false);
+        speechHasStarted = true;
+        setGamePhase(PHASE_DAY_SPEECH);
+    }
+
+    function handleTieSpeechClick(id) {
+        if (isOverrideMode) {
+            playGroup('speech30', id, false);
+            setGamePhase(PHASE_TIE_SPEECH);
+            return;
+        }
+        const expected = tieSpeechQueue[tieSpeechIndex];
+        const next = tieSpeechQueue[tieSpeechIndex + 1];
+        if (!expected) return;
+        if (id !== expected && !(activeGroupKey === 'speech30' && activePlayerId === expected && id === next)) {
+            alert(`⛔ Порядок перестрелки: Игрок №${expected}`);
+            return;
+        }
+        if (activeGroupKey === 'speech30' && activePlayerId === expected && id === next) {
+            tieSpeechIndex++;
+            playGroup('speech30', tieSpeechQueue[tieSpeechIndex], false);
+            return;
+        }
+        playGroup('speech30', id, false);
+        setGamePhase(PHASE_TIE_SPEECH);
+    }
+
+    function handleLastWordClick(id) {
+        if (isOverrideMode) {
+            playGroup('lastSpeech', id, false);
+            setGamePhase(PHASE_LAST_WORD);
+            return;
+        }
+        const expected = lastWordQueue[lastWordIndex];
+        const next = lastWordQueue[lastWordIndex + 1];
+        if (!expected) return;
+        if (id !== expected && !(activeGroupKey === 'lastSpeech' && activePlayerId === expected && id === next)) {
+            alert(`⛔ Порядок последнего слова: Игрок №${expected}`);
+            return;
+        }
+        if (activeGroupKey === 'lastSpeech' && activePlayerId === expected && id === next) {
+            lastWordIndex++;
+            playGroup('lastSpeech', lastWordQueue[lastWordIndex], false);
+            return;
+        }
+        playGroup('lastSpeech', id, false);
+        setGamePhase(PHASE_LAST_WORD);
+    }
+
+    function handleNightShotClick(id) {
+        const p = players.find(x => x.id === id);
+        if (!p) return;
+        if (!isOverrideMode && p.status !== 'alive') return;
+        if (nightShotVictimId && nightShotVictimId !== id) {
+            const prev = players.find(x => x.id === nightShotVictimId);
+            if (prev && prev.status === 'killed') {
+                prev.status = 'alive';
+                prev.nominationOrder = null;
+            }
+        }
+        nightShotVictimId = id;
+        nightKilledId = id;
+        changePlayerStatus(id, 'killed');
+        nightActionTaken = true;
+        setGamePhase(PHASE_NIGHT);
+    }
+
+    function askConfirmation(text) { 
+        if (!isConfirmMode) return true; 
+        return confirm(text); 
+    }
+
+    // YOUTUBE API
+    var tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    var firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+    var player;
+    function onYouTubeIframeAPIReady() {
+        player = new YT.Player('player', {
+            height: '100%', width: '100%',
+            playerVars: { 'autoplay': 0, 'controls': 1, 'rel': 0 },
+            events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange }
+        });
+    }
+    function onPlayerReady(event) { console.log("DJ Console Ready"); }
+
+    function onPlayerStateChange(event) {
+        if (event.data === YT.PlayerState.ENDED) {
+            if (overrideAutoBlock) {
+                overrideAutoBlock = false;
+                return;
+            }
+            checkNextSmartTrack();
+        }
+    }
+
+    // LOGIC
+    function skipToNextPlayer() {
+        if (!activeGroupKey && !lastPlayedVideoId) return; 
+        stopManualTimer();
+        checkNextSmartTrack(); 
+    }
+
+    function checkNextSmartTrack() {
+        // 0. Договорка завершена -> Доброе утро
+        if (lastPlayedVideoId === 'cqlPQdbSe1k') {
+            if (!isAutoMode) return;
+            playGoodMorning();
+            return;
+        }
+
+        // 1. Intro -> New Day (Usually for miss or if not specified)
+        if (lastPlayedVideoId === 'lBHtijeYn5Y') {
+            if (!isAutoMode) return;
+            if (nightKilledId !== null) {
+                playVideoByIdSafe('3tAyhMEafc0', 'Озвучка убийства (Intro)', true);
+            } else {
+                startNewDayAndPlay();
+            }
+            return;
+        }
+
+        // 2. Kill Reveal Intro -> Morning (Always)
+        if (lastPlayedVideoId === '3tAyhMEafc0') {
+            if (!isAutoMode) return;
+            playGoodMorning();
+            return;
+        }
+
+        // 3. Kill Specific (Victim Video) -> Morning (Always)
+        if (activeGroupKey === 'firstKilledSpecific') {
+            if (!isAutoMode) return;
+            playGoodMorning(); 
+            return;
+        }
+
+        // 4. Morning Ends -> Check for Victim Speech OR Auto-Start Day
+        if (lastPlayedVideoId === 'yjcbyOhLHXE') { 
+            if (!isAutoMode) return;
+            if (nightKilledId !== null) {
+                beginLastWord([nightKilledId], PHASE_DAY_SPEECH, true);
+            } else {
+                // No kill -> Start Day immediately
+                if (dayAdvancedByMorning) {
+                    dayAdvancedByMorning = false;
+                } else {
+                    startNewDayAndPlay();
+                }
+                startDaySpeech(true);
+            }
+            return;
+        }
+
+        // 5. Victim Speech Ends (Night or Voted)
+        if (activeGroupKey === 'lastSpeech') {
+            if (!isAutoMode) return;
+            if (currentGamePhase === PHASE_LAST_WORD) {
+                if (lastWordIndex + 1 < lastWordQueue.length) {
+                    lastWordIndex++;
+                    playGroup('lastSpeech', lastWordQueue[lastWordIndex], true);
+                    return;
+                }
+                lastWordQueue = [];
+                lastWordIndex = 0;
+                if (lastWordNextPhase === PHASE_DAY_SPEECH) {
+                    if (dayAdvancedByMorning) {
+                        dayAdvancedByMorning = false;
+                    } else {
+                        startNewDayAndPlay();
+                    }
+                    startDaySpeech(true);
+                } else if (lastWordNextPhase === PHASE_NIGHT) {
+                    startNightPhase();
+                } else {
+                    setGamePhase(lastWordNextPhase);
+                }
+                return;
+            }
+        }
+
+        // 6. Miss (Promah) Ends -> Auto Start Day
+        if (lastPlayedVideoId === 'mTHn8ZfhC4o') { 
+            nightActionTaken = true; 
+            if (!isAutoMode) return;
+            startNewDayAndPlay(); 
+            
+            // AUTO START 1st PLAYER
+            let starter = getCorrectDayStarter();
+            if (starter) {
+                playGroup('speech60', starter, true);
+                speechHasStarted = true;
+            }
+            return;
+        }
+
+        if ((activeGroupKey !== 'speech60' && activeGroupKey !== 'speech30') || activePlayerId === null) {
+            return;
+        }
+
+        if (activeGroupKey === 'speech30') {
+            if (!isAutoMode) return;
+            if (currentGamePhase === PHASE_TIE_SPEECH) {
+                if (tieSpeechIndex + 1 < tieSpeechQueue.length) {
+                    tieSpeechIndex++;
+                    playGroup('speech30', tieSpeechQueue[tieSpeechIndex], true);
+                } else {
+                    tieSpeechQueue = [];
+                    tieSpeechIndex = 0;
+                    setGamePhase(PHASE_VOTING);
+                }
+                return;
+            }
+        }
+
+        let nextId = activePlayerId + 1;
+        if (nextId > 10) nextId = 1;
+
+        while (nextId !== currentDayOpener) { 
+            const p = players.find(x => x.id === nextId);
+            if (p && p.status === 'alive') {
+                if (!isAutoMode) return; // Wait for manual click
+                playGroup('speech60', nextId, true); 
+                return; 
+            }
+            nextId++;
+            if (nextId > 10) nextId = 1;
+        }
+        
+        if (!isAutoMode) return;
+        endDaySpeechFlow();
+    }
+
+    function startNightPhase() {
+        if (consecutivePeacefulNights >= 3) {
+            showGameOver('Ничья', '3 ночи без жертв');
+            return;
+        }
+        if(!askConfirmation("Начать фазу Ночь?")) return;
+        playVideoByIdSafe('t5Ek5m3-JIw', 'Ночь (Гонг)', true);
+        activeGroupKey = null; 
+        activePlayerId = null;
+        lastActiveDayPlayer = null; 
+        nightActionTaken = true; 
+        nightShotVictimId = null;
+        setGamePhase(PHASE_NIGHT);
+    }
+
+    function playGoodMorning() {
+        if(!askConfirmation("Включить Доброе Утро?")) return;
+        if (currentGamePhase === PHASE_NIGHT || currentGamePhase === PHASE_AGREEMENT || currentGamePhase === PHASE_ROLES) {
+            dayAdvancedByMorning = true;
+            advanceToDay(true, { preserveNightData: true, silent: true });
+        }
+        enablePrivacyMode();
+        playVideoByIdSafe('yjcbyOhLHXE', 'Доброе утро', true);
+    }
+
+    function startNewDayAndPlay() {
+        if(!askConfirmation("Начать новый день?")) return;
+        nextDay(true);
+    }
+
+    function startDaySpeech(isAuto = false) {
+        const starter = getCorrectDayStarter();
+        if (starter) {
+            playGroup('speech60', starter, isAuto);
+            speechHasStarted = true;
+            setGamePhase(PHASE_DAY_SPEECH);
+        }
+    }
+
+    function beginLastWord(queue, nextPhase, isAuto = false) {
+        lastWordQueue = queue.slice();
+        lastWordIndex = 0;
+        lastWordNextPhase = nextPhase;
+        setGamePhase(PHASE_LAST_WORD);
+        if (lastWordQueue.length > 0) {
+            playGroup('lastSpeech', lastWordQueue[0], isAuto);
+        }
+    }
+
+    function endDaySpeechFlow() {
+        if (skippedVotingDays > 0) {
+            startNightPhase();
+            return;
+        }
+        if (votingQueue.length >= 2) {
+            setGamePhase(PHASE_VOTING);
+            return;
+        }
+        startNightPhase();
+    }
+
+    function getCorrectDayStarter() {
+        let candidate = currentDayOpener;
+        for (let i = 0; i < 10; i++) {
+            const p = players.find(x => x.id === candidate);
+            if (p && p.status === 'alive') return candidate;
+            candidate++;
+            if (candidate > 10) candidate = 1;
+        }
+        return null; 
+    }
+
+    function getNextAliveFrom(fromId) {
+        let current = fromId + 1;
+        if (current > 10) current = 1;
+        for (let i = 0; i < 12; i++) {
+            const p = players.find(x => x.id === current);
+            if (p && p.status === 'alive') return current;
+            current++;
+            if (current > 10) current = 1;
+        }
+        return fromId;
+    }
+
+    function playVideoByIdSafe(vidId, actionName, isAuto = false) {
+        if (!isOverrideMode && actionName !== 'Посадка' && !checkRoleBalance()) {
+            alert('Неверный состав ролей!');
+            updateRoleBalanceUI();
+            return;
+        }
+        if (!askConfirmation(`Запустить: ${actionName}?`)) return;
+        activeGroupKey = null; activePlayerId = null;
+        lastPlayedVideoId = vidId; 
+        if (actionName === 'ПРОМАХ') nightKilledId = null;
+        overrideAutoBlock = isOverrideMode;
+        if (actionName === 'Посадка' || actionName === 'Договорка') {
+            dayNumber = 0;
+            document.getElementById('day-number').value = dayNumber;
+            currentDayOpener = getDayOpener(dayNumber);
+            dayAdvancedByMorning = false;
+            setGamePhase(actionName === 'Посадка' ? PHASE_ROLES : PHASE_AGREEMENT);
+            enablePrivacyMode();
+        }
+        if (actionName === 'Стрельба') {
+            setGamePhase(PHASE_NIGHT);
+        }
+        if(player && player.loadVideoById) player.loadVideoById(vidId);
+    }
+
+    function onCombinedSpeechClick(id) {
+        onPhaseButtonClick(id);
+    }
+
+    function playGroup(groupKey, playerNum, isAuto = false) {
+        if (groupKey === 'roles') {
+            dayNumber = 0;
+            document.getElementById('day-number').value = dayNumber;
+            currentDayOpener = getDayOpener(dayNumber);
+            dayAdvancedByMorning = false;
+            setGamePhase(PHASE_ROLES);
+        }
+        if (groupKey === 'speech30') {
+            setManualTimer(30, true);
+            setTimeout(startManualTimer, 500);
+        }
+        if (groupKey === 'speech60' || groupKey === 'lastSpeech') {
+            setManualTimer(60, true);
+            const delay = (groupKey === 'lastSpeech') ? 2000 : 500;
+            setTimeout(startManualTimer, delay);
+        }
+        if ((groupKey === 'speech60' || groupKey === 'speech30') && groupKey !== 'lastSpeech' && groupKey !== 'firstKilledSpecific') {
+            const p = players.find(x => x.id === playerNum);
+            if (p && p.status !== 'alive') {
+                alert(`⛔ Игрок ${playerNum} не в игре!`);
+                return;
+            }
+        }
+
+        // --- AUTOMATICALLY MARK AS KILLED ---
+        if (groupKey === 'firstKilledSpecific') {
+            nightKilledId = playerNum; 
+            changePlayerStatus(playerNum, 'killed');
+            if (firstKilled === null) {
+                firstKilled = playerNum;
+                document.getElementById('lhc-block').style.display = 'block';
+                document.getElementById('first-killed-id').innerText = playerNum;
+            }
+        }
+
+        if (groupKey === 'lastSpeech' || groupKey === 'firstKilledSpecific') {
+            if (nightKilledId !== null && !isOverrideMode) {
+                if (playerNum !== nightKilledId) playerNum = nightKilledId; 
+            }
+        }
+
+        if (groupKey === 'speech30') {
+            if (currentGamePhase !== PHASE_TIE_SPEECH) {
+                if (crashIds.length === 0 && !isOverrideMode) { alert(`⛔ Попила нет!`); return; }
+                if (!isOverrideMode) {
+                    if (!isAuto) playerNum = crashIds[currentCrashIndex];
+                } else {
+                    if (crashIds.includes(playerNum)) currentCrashIndex = crashIds.indexOf(playerNum);
+                }
+            }
+        }
+
+        let actionName = "Действие";
+        if (groupKey === 'roles') actionName = "Выбор роли";
+        if (groupKey === 'speech60') actionName = `Речь 60сек (Игрок ${playerNum})`;
+        if (groupKey === 'speech30') actionName = `Речь 30сек (Игрок ${playerNum})`;
+        if (groupKey === 'firstKilledSpecific') actionName = `Озвучка убийства (Игрок ${playerNum})`;
+        if (groupKey === 'lastSpeech') actionName = `Последняя речь (Игрок ${playerNum})`;
+
+        if (!askConfirmation(`Запустить ${actionName}?`)) return;
+
+        activeGroupKey = groupKey;
+        activePlayerId = playerNum; 
+        lastPlayedVideoId = null; 
+        overrideAutoBlock = isOverrideMode;
+        
+        if (groupKey === 'speech60') {
+            lastActiveDayPlayer = playerNum;
+        }
+
+        const vidArray = videoMap[groupKey];
+        if (vidArray && vidArray[playerNum - 1]) {
+            const vidId = vidArray[playerNum - 1];
+            if(player && player.loadVideoById) player.loadVideoById(vidId);
+        }
+        updatePhaseActionLabel();
+        renderPhaseButtons();
+    }
+
+    function toggleVideo() { document.getElementById('player-container').classList.toggle('visible'); }
+    
+    function updateButtonStyles() {
+        renderPhaseButtons();
+    }
+
+    // TABLE
+    function renderTable() {
+        const tableBody = document.getElementById('table-body');
+        if(!tableBody) return;
+        tableBody.innerHTML = '';
+        const aliveCount = players.filter(p => p.status === 'alive').length;
+        document.getElementById('alive-count').innerText = aliveCount;
+        document.getElementById('votes-max').innerText = aliveCount;
+
+        updateNightInputs();
+        setTimeout(renderPhaseButtons, 0); 
+
+        players.forEach(p => {
+            const tr = document.createElement('tr');
+            if (p.status !== 'alive') tr.classList.add('row-dead');
+
+            const roleLabels = {
+                civilian: 'Мир',
+                mafia: 'Маф',
+                don: 'Дон',
+                sheriff: 'Шер'
+            };
+            const roleSel = `<button class="role-select role-${p.role}" onclick="cycleRole(${p.id})">${roleLabels[p.role] || 'Мир'}</button>`;
+
+            let foulsHtml = '';
+            for(let f=1; f<=4; f++) {
+                const active = f <= p.fouls ? 'foul-active' : '';
+                foulsHtml += `<button class="foul-btn ${active}" onclick="setFoul(${p.id}, ${f})">${f}</button>`;
+            }
+
+            let techFoulsHtml = '';
+            for(let t=1; t<=2; t++) {
+                const active = t <= p.techFouls ? 'tech-foul-active' : '';
+                techFoulsHtml += `<button class="foul-btn ${active}" onclick="setTechFoul(${p.id}, ${t})">${t}</button>`;
+            }
+
+            const bonusValue = Number(p.bonus || 0).toFixed(1);
+            const bonusHtml = `
+                <div style="display:flex; align-items:center; gap:4px; justify-content:center;">
+                    <button class="bonus-btn" onclick="updateBonus(${p.id}, -0.1)">-</button>
+                    <input class="bonus-input" type="number" step="0.1" min="-10" max="10" value="${bonusValue}" oninput="updateBonus(${p.id}, null, this.value)">
+                    <button class="bonus-btn" onclick="updateBonus(${p.id}, 0.1)">+</button>
+                </div>
+            `;
+
+            const noteBtn = `<button class="note-btn" onclick="openNoteModal(${p.id})">✏️</button>`;
+
+            let nomText = "Выст.";
+            let nomClass = "";
+            if (p.nominationOrder) {
+                nomText = `№ ${p.nominationOrder}`;
+                nomClass = "nominated";
+            }
+            const nomDisabled = p.status !== 'alive' ? 'disabled style="opacity:0.3"' : '';
+            const hiddenNomClass = isNominationHidden ? 'hidden-content' : '';
+
+            let statusLabel = 'ЖИВ';
+            let statusClass = 'status-alive';
+            if (p.status === 'killed') { statusLabel = 'УБИТ'; statusClass = 'status-killed'; }
+            if (p.status === 'voted') { statusLabel = 'ЗАГОЛ.'; statusClass = 'status-voted'; }
+            if (p.status === 'removed') { statusLabel = 'УДАЛ.'; statusClass = 'status-removed'; }
+
+            const statusBtn = `<button class="status-btn ${statusClass}" onclick="cycleStatus(${p.id})">${statusLabel}</button>`;
+
+            let djBtn;
+            if (p.status === 'alive') {
+                 djBtn = `<button id="dj-table-btn-${p.id}" class="sound-btn" onclick="onPhaseButtonClick(${p.id})">🔊</button>`;
+            } else {
+                 djBtn = `<span class="sound-btn-disabled">🔇</span>`;
+            }
+
+            tr.innerHTML = `
+                <td><b>${p.id}</b></td>
+                <td><input type="text" placeholder="Игрок ${p.id}" class="${p.status!=='alive'?'dead-text':''}"></td>
+                <td>${djBtn}</td>
+                <td>${roleSel}</td>
+                <td>${foulsHtml}</td>
+                <td>${techFoulsHtml}</td>
+                <td>${bonusHtml}</td>
+                <td>${noteBtn}</td>
+                <td><button class="nominate-btn ${nomClass} ${hiddenNomClass}" onclick="toggleNomination(${p.id})" ${nomDisabled}>${nomText}</button></td>
+                <td>${statusBtn}</td>
+            `;
+            tableBody.appendChild(tr);
+        });
+        renderVotingPanel();
+        updateRoleBalanceUI();
+        saveState();
+    }
+
+    function setRole(id, role) {
+        const p = players.find(x => x.id === id);
+        if (!p) return;
+        p.role = role;
+        renderTable();
+        updateRoleBalanceUI();
+    }
+    
+    function setFoul(id, n) {
+        const p = players.find(x => x.id === id);
+        if(p.status !== 'alive') return;
+        p.fouls = (p.fouls === n) ? n - 1 : n;
+        if (p.fouls >= 4) changePlayerStatus(id, 'removed');
+        renderTable();
+    }
+
+    function setTechFoul(id, n) {
+        const p = players.find(x => x.id === id);
+        if(p.status !== 'alive') return;
+        p.techFouls = (p.techFouls === n) ? n - 1 : n;
+        if (p.techFouls >= 2) changePlayerStatus(id, 'removed');
+        renderTable();
+    }
+
+    function clampBonusValue(value) {
+        let val = Math.round(value * 10) / 10;
+        if (val > 10) val = 10;
+        if (val < -10) val = -10;
+        return val;
+    }
+
+    function updateBonus(id, change, rawValue) {
+        const p = players.find(x => x.id === id);
+        if (!p) return;
+        let val = Number(p.bonus || 0);
+        if (typeof rawValue === 'string') {
+            const normalized = rawValue.replace(',', '.');
+            const parsed = parseFloat(normalized);
+            val = Number.isNaN(parsed) ? 0 : parsed;
+        } else if (typeof change === 'number') {
+            val = val + change;
+        }
+        p.bonus = clampBonusValue(val);
+        renderTable();
+    }
+
+    function openNoteModal(id) {
+        const p = players.find(x => x.id === id);
+        if (!p) return;
+        currentNotePlayerId = id;
+        const title = document.getElementById('note-title');
+        const input = document.getElementById('note-input');
+        if (title) title.textContent = `Заметка (Игрок ${id})`;
+        if (input) input.value = p.notes || "";
+        document.getElementById('note-modal').style.display = 'flex';
+    }
+
+    function closeNoteModal() {
+        document.getElementById('note-modal').style.display = 'none';
+    }
+
+    function onNoteInputChange(value) {
+        if (!currentNotePlayerId) return;
+        const p = players.find(x => x.id === currentNotePlayerId);
+        if (!p) return;
+        p.notes = value;
+        saveState();
+    }
+
+    function cycleStatus(id) {
+        const p = players.find(x => x.id === id);
+        if (p.status === 'alive') changePlayerStatus(id, 'killed');
+        else if (p.status === 'killed') changePlayerStatus(id, 'voted');
+        else if (p.status === 'voted') changePlayerStatus(id, 'removed');
+        else if (p.status === 'removed') changePlayerStatus(id, 'alive');
+    }
+
+    function changePlayerStatus(id, newStatus) {
+        const p = players.find(x => x.id === id);
+        const oldStatus = p.status;
+
+        if (newStatus === 'removed' && oldStatus !== 'removed') {
+            skippedVotingDays++;
+            alert(`Игрок ${id} удален. Штраф: голосование отменено (+1 дн.). Всего: ${skippedVotingDays}`);
+        }
+        if (oldStatus === 'removed' && newStatus !== 'removed') {
+            if (skippedVotingDays > 0) skippedVotingDays--;
+        }
+
+        p.status = newStatus;
+        if (newStatus === 'killed' || newStatus === 'voted' || newStatus === 'removed') {
+            consecutivePeacefulNights = 0;
+        }
+        if (newStatus === 'alive') {
+            if (nightKilledId === id) nightKilledId = null; 
+        } else {
+            votingQueue = votingQueue.filter(x => x !== id);
+            reindexNominations();
+            
+            if (newStatus === 'killed') {
+                nightKilledId = id; 
+                if (firstKilled === null) {
+                    firstKilled = id;
+                    document.getElementById('lhc-block').style.display = 'block';
+                    document.getElementById('first-killed-id').innerText = id;
+                    updateNightInputs();
+                }
+            }
+        }
+        renderTable();
+        checkWinCondition();
+        saveState();
+    }
+
+    function killPlayer(id, reason) { changePlayerStatus(id, 'killed'); }
+
+    function setGameOverState(isOver) {
+        gameOver = isOver;
+        if (isOver) document.body.classList.add('game-over');
+        else document.body.classList.remove('game-over');
+        renderPhaseButtons();
+    }
+
+    function checkWinCondition() {
+        if (gameOver) return;
+        const alive = players.filter(p => p.status === 'alive');
+        const mafiaAlive = alive.filter(p => p.role === 'mafia' || p.role === 'don').length;
+        const cityAlive = alive.filter(p => p.role === 'civilian' || p.role === 'sheriff').length;
+        if (mafiaAlive === 0) {
+            showGameOver('Город', 'Все мафии убиты');
+            return;
+        }
+        if (mafiaAlive >= cityAlive) {
+            showGameOver('Мафия', 'Математическая победа');
+        }
+    }
+
+    function showGameOver(winner, reason = '') {
+        setGameOverState(true);
+        lastWinner = winner;
+        lastWinReason = reason || null;
+        const modal = document.getElementById('game-over-modal');
+        const content = document.getElementById('game-over-content');
+        const text = document.getElementById('game-over-text');
+        const isDraw = winner === 'Ничья';
+        const winnerLabel = winner === 'Мафия' ? 'Мафии' : (winner === 'Город' ? 'Города' : 'Ничья');
+        const reasonText = reason ? ` (${reason})` : '';
+        if (text) text.textContent = `${isDraw ? 'Итог' : 'Победа'} ${winnerLabel}${reasonText}`;
+        if (content) {
+            content.classList.remove('game-over-mafia', 'game-over-city');
+            if (winner === 'Мафия') content.classList.add('game-over-mafia');
+            else content.classList.add('game-over-city');
+        }
+        if (modal) modal.style.display = 'flex';
+    }
+
+    function confirmNewGame() {
+        if (!confirm('Сохранить и начать новую игру?')) return;
+        resetGame();
+        if (typeof window.createRoom === 'function') window.createRoom();
+    }
+
+    function getRoleLabel(role) {
+        if (role === 'mafia') return 'Мафия';
+        if (role === 'don') return 'Дон';
+        if (role === 'sheriff') return 'Шериф';
+        return 'Мирный';
+    }
+
+    function saveGameToHistory(winner) {
+        const lhcResult = document.getElementById('lhc-result')?.innerText || '-';
+        const snapshot = players.map(p => ({
+            id: p.id,
+            role: p.role,
+            fouls: p.fouls,
+            techFouls: p.techFouls,
+            bonus: Number(p.bonus || 0).toFixed(1),
+            notes: p.notes || ""
+        }));
+        gameHistory.unshift({
+            gameNumber: gameHistory.length + 1,
+            winner,
+            reason: lastWinReason || '',
+            days: dayNumber,
+            lhcResult,
+            players: snapshot
+        });
+        gameCount = gameHistory.length;
+        renderGameHistory();
+    }
+
+    function renderGameHistory() {
+        const historyList = document.getElementById('history-list');
+        if (!historyList) return;
+        historyList.innerHTML = '';
+        gameHistory.forEach(entry => {
+            const playerLines = entry.players.map(p => {
+                const noteText = p.notes ? ` | Заметка: ${p.notes}` : '';
+                return `#${p.id} ${getRoleLabel(p.role)} | Ф:${p.fouls} | Тех:${p.techFouls} | Б:${p.bonus}${noteText}`;
+            });
+            const card = document.createElement('div');
+            card.className = 'history-card';
+            const reasonText = entry.reason ? ` (${entry.reason})` : '';
+            const titleText = entry.winner === 'Ничья'
+                ? `Игра ${entry.gameNumber} — Итог: Ничья${reasonText}`
+                : `Игра ${entry.gameNumber} — Победа: ${entry.winner}${reasonText}`;
+            card.innerHTML = `
+                <div class="history-title">${titleText}</div>
+                <div class="history-meta">Дней: ${entry.days} | Лучший ход: ${entry.lhcResult}</div>
+                <div class="history-list">${playerLines.map(line => `<div>${line}</div>`).join('')}</div>
+            `;
+            historyList.appendChild(card);
+        });
+    }
+
+    function resetGame() {
+        saveGameToHistory(lastWinner || '-');
+        players = buildDefaultPlayers();
+        dayNumber = 0;
+        currentDayOpener = 1;
+        speechHasStarted = false;
+        lastPlayedVideoId = null;
+        nightKilledId = null;
+        firstKilled = null;
+        currentTieCandidates = [];
+        votingQueue = [];
+        votedVictimId = null;
+        lastActiveDayPlayer = null;
+        nightActionTaken = false;
+        skippedVotingDays = 0;
+        dayAdvancedByMorning = false;
+        lastWordQueue = [];
+        lastWordIndex = 0;
+        lastWordNextPhase = PHASE_DAY_SPEECH;
+        tieSpeechQueue = [];
+        tieSpeechIndex = 0;
+        nightShotVictimId = null;
+        overrideAutoBlock = false;
+        currentNotePlayerId = null;
+        lastWinReason = null;
+        consecutivePeacefulNights = 0;
+        document.getElementById('day-number').value = dayNumber;
+        document.getElementById('sheriff-res').innerText = "";
+        document.getElementById('don-res').innerText = "";
+        document.getElementById('shot-input').value = 0;
+        document.getElementById('sheriff-check-input').value = 0;
+        document.getElementById('don-check-input').value = 0;
+        document.getElementById('lhc-1').value = '';
+        document.getElementById('lhc-2').value = '';
+        document.getElementById('lhc-3').value = '';
+        document.getElementById('lhc-result').innerText = "";
+        document.getElementById('lhc-block').style.display = 'none';
+        document.getElementById('first-killed-id').innerText = '-';
+        setManualTimer(60, true);
+        document.getElementById('game-over-modal').style.display = 'none';
+        setGameOverState(false);
+        lastWinner = null;
+        lastWinReason = null;
+        renderTable();
+        renderVotingPanel();
+        renderPhaseButtons();
+        setGamePhase(PHASE_ROLES);
+        localStorage.removeItem(STORAGE_KEY);
+        saveState();
+    }
+
+    function toggleNomination(id) {
+        const p = players.find(x => x.id === id);
+        if (p.status !== 'alive') return;
+        if (p.nominationOrder) votingQueue = votingQueue.filter(x => x !== id);
+        else votingQueue.push(id);
+        reindexNominations();
+        renderTable();
+    }
+
+    function reindexNominations() {
+        players.forEach(p => p.nominationOrder = null);
+        votingQueue.forEach((pid, index) => {
+            const p = players.find(x => x.id === pid);
+            p.nominationOrder = index + 1;
+        });
+    }
+
+    function clearNominations() {
+        votingQueue = [];
+        crashIds = [];
+        currentCrashIndex = 0;
+        players.forEach(p => p.nominationOrder = null);
+        renderPhaseButtons();
+        renderTable();
+    }
+
+    function commitShot() {
+        const tid = parseInt(document.getElementById('shot-input').value);
+        if (tid !== 0) { 
+            consecutivePeacefulNights = 0;
+            handleNightShotClick(tid);
+        } else { 
+            if (nightShotVictimId) {
+                const prev = players.find(x => x.id === nightShotVictimId);
+                if (prev && prev.status === 'killed') {
+                    prev.status = 'alive';
+                    prev.nominationOrder = null;
+                }
+            }
+            consecutivePeacefulNights += 1;
+            nightKilledId = null;
+            nightShotVictimId = null;
+            alert("Промах! Никто не убит."); 
+        }
+        nightActionTaken = true; 
+        renderPhaseButtons();
+        saveState();
+    }
+
+    function renderVotingPanel() {
+        const container = document.getElementById('candidates-container');
+        
+        if (skippedVotingDays > 0) {
+            container.innerHTML = `<div class="voting-blocked-msg">⛔ ГОЛОСОВАНИЕ ОТМЕНЕНО (Пропусков: ${skippedVotingDays})</div>`;
+            document.getElementById('nom-count').innerText = "-";
+            document.getElementById('votes-sum').innerText = "-";
+            const finishBtn = document.querySelector('.finish-vote-btn');
+            if(finishBtn) {
+                finishBtn.disabled = true;
+                finishBtn.style.opacity = "0.5";
+            }
+            return;
+        }
+
+        const finishBtn = document.querySelector('.finish-vote-btn');
+        if(finishBtn) {
+            finishBtn.disabled = false;
+            finishBtn.style.opacity = "1";
+        }
+
+        document.getElementById('nom-count').innerText = votingQueue.length;
+        container.innerHTML = '';
+        if (votingQueue.length === 0) {
+            container.innerHTML = '<div style="color: #666; padding: 10px;">Нет выставленных кандидатур</div>';
+            document.getElementById('votes-sum').innerText = "0";
+            document.getElementById('shootout-btn').style.display = 'none'; 
+            return;
+        }
+        votingQueue.forEach((pid, index) => {
+            const isLast = index === votingQueue.length - 1;
+            const card = document.createElement('div');
+            card.className = 'candidate-card';
+            card.id = `card-${pid}`;
+            const inputAttr = isLast ? 
+                'readonly style="background:#222; color:#777"' : 
+                `oninput="validateVote(this)" onkeydown="handleZeroKeydown(event, this)" max="10"`;
+            card.innerHTML = `
+                <div style="font-weight:bold; font-size:1.2em">#${pid}</div>
+                <div style="font-size:0.8em; color:#aaa">Канд. ${index + 1}</div>
+                <input type="number" min="0" max="10" class="vote-input" id="vote-input-${pid}" value="0" ${inputAttr}>
+            `;
+            container.appendChild(card);
+        });
+        calculateVotes();
+    }
+
+    function handleZeroKeydown(e, input) {
+        if (input.value === "0") {
+            const key = e.key;
+            if (key >= '1' && key <= '9' && key.length === 1) {
+                e.preventDefault();
+                input.value = key;
+                validateVote(input);
+            }
+        }
+    }
+
+    function validateVote(input) {
+        let text = input.value;
+        if (text === '') { calculateVotes(); return; }
+        if (text.length > 1 && text.startsWith('0')) {
+           text = text.substring(1);
+           input.value = text;
+        }
+        let val = parseInt(text) || 0;
+        if (val > 10) {
+            input.value = text.slice(-1);
+        }
+        calculateVotes();
+    }
+
+    function calculateVotes() {
+        const aliveCount = players.filter(p => p.status === 'alive').length;
+        let currentSum = 0;
+        votingQueue.forEach((pid, index) => {
+            if (index === votingQueue.length - 1) return; 
+            const inp = document.getElementById(`vote-input-${pid}`);
+            const val = parseInt(inp ? inp.value : 0) || 0;
+            currentSum += val;
+        });
+        const lastPid = votingQueue[votingQueue.length - 1];
+        const lastVotes = aliveCount - currentSum;
+        const lastInput = document.getElementById(`vote-input-${lastPid}`);
+        if (lastInput) lastInput.value = lastVotes >= 0 ? lastVotes : 0;
+
+        const total = currentSum + (lastVotes > 0 ? lastVotes : 0);
+        document.getElementById('votes-sum').innerText = total;
+        document.querySelectorAll('.candidate-card').forEach(c => c.classList.remove('leaving', 'crash'));
+        
+        crashIds = [];
+        
+        const shootoutBtn = document.getElementById('shootout-btn');
+        shootoutBtn.style.display = 'none';
+
+        if (lastVotes < 0) { renderPhaseButtons(); return; }
+
+        let results = [];
+        votingQueue.forEach(pid => {
+            const inp = document.getElementById(`vote-input-${pid}`);
+            results.push({ pid: pid, val: parseInt(inp.value)||0 });
+        });
+        let maxVotes = -1;
+        results.forEach(r => { if(r.val > maxVotes) maxVotes = r.val; });
+
+        if (maxVotes > 0) {
+            const winners = results.filter(r => r.val === maxVotes);
+            if (winners.length === 1) {
+                document.getElementById(`card-${winners[0].pid}`).classList.add('leaving');
+            } else {
+                winners.forEach(w => {
+                    document.getElementById(`card-${w.pid}`).classList.add('crash');
+                    crashIds.push(w.pid); 
+                });
+                shootoutBtn.style.display = 'block';
+            }
+        }
+        if (crashIds.length > 0) currentCrashIndex = 0;
+        renderPhaseButtons(); 
+    }
+
+    function finishVoting() {
+        let maxVotes = -1;
+        let losers = [];
+        votingQueue.forEach(pid => {
+            const inp = document.getElementById(`vote-input-${pid}`);
+            const val = parseInt(inp ? inp.value : 0) || 0;
+            if (val > maxVotes) {
+                maxVotes = val;
+                losers = [pid];
+            } else if (val === maxVotes) {
+                losers.push(pid);
+            }
+        });
+
+        if (maxVotes <= 0) return; 
+
+        if (losers.length > 1) {
+            currentTieCandidates = losers;
+            openLiftModal();
+            return;
+        }
+
+        const loserId = losers[0];
+        if (askConfirmation(`Заголосовать игрока №${loserId} (${maxVotes} голосов)?`)) {
+            changePlayerStatus(loserId, 'voted');
+            votedVictimId = loserId; // MARK FOR LAST SPEECH
+            beginLastWord([loserId], PHASE_NIGHT, false);
+            clearNominations(); 
+        }
+    }
+
+    // --- LIFT MODAL LOGIC ---
+    function openLiftModal() {
+        const modal = document.getElementById('lift-modal');
+        const listDiv = document.getElementById('lift-candidates-names');
+        const grid = document.getElementById('lift-voters-grid');
+        const input = document.getElementById('lift-count-input');
+        const thresholdSpan = document.getElementById('lift-threshold');
+
+        listDiv.innerText = currentTieCandidates.map(id => "#" + id).join(", ");
+        const aliveCount = players.filter(p => p.status === 'alive').length;
+        const threshold = aliveCount / 2;
+        thresholdSpan.innerText = threshold;
+
+        input.value = 0;
+        grid.innerHTML = '';
+
+        players.filter(p => p.status === 'alive').forEach(p => {
+            const btn = document.createElement('button');
+            btn.className = 'lift-voter-btn';
+            btn.innerText = p.id;
+            btn.onclick = function() { toggleLiftVote(this); };
+            grid.appendChild(btn);
+        });
+
+        modal.style.display = "flex";
+    }
+
+    function closeLiftModal() {
+        document.getElementById('lift-modal').style.display = "none";
+    }
+
+    function toggleLiftVote(btn) {
+        btn.classList.toggle('active');
+        const activeCount = document.querySelectorAll('.lift-voter-btn.active').length;
+        document.getElementById('lift-count-input').value = activeCount;
+    }
+
+    function syncLiftButtons(fromButtons) {}
+
+    function confirmLift() {
+        const votes = parseInt(document.getElementById('lift-count-input').value) || 0;
+        const aliveCount = players.filter(p => p.status === 'alive').length;
+        
+        if (votes > aliveCount / 2) {
+            alert(`Голосов: ${votes}. Игроки покидают стол.`);
+            currentTieCandidates.forEach(id => changePlayerStatus(id, 'voted'));
+            beginLastWord(currentTieCandidates, PHASE_NIGHT, false);
+            clearNominations();
+            closeLiftModal();
+        } else {
+            alert(`Голосов: ${votes}. Никто не уходит.`);
+            startNightPhase(); 
+            clearNominations();
+            closeLiftModal();
+        }
+    }
+
+    function startShootout() {
+        if (crashIds.length < 2) return;
+        votingQueue = votingQueue.filter(id => crashIds.includes(id));
+        players.forEach(p => {
+            if (!crashIds.includes(p.id)) {
+                p.nominationOrder = null;
+            }
+        });
+        crashIds = [];
+        reindexNominations();
+        renderTable(); 
+        renderVotingPanel(); 
+        tieSpeechQueue = votingQueue.slice();
+        tieSpeechIndex = 0;
+        setGamePhase(PHASE_TIE_SPEECH);
+    }
+
+    function updateNightInputs() {
+        const aliveIds = players.filter(p => p.status === 'alive').map(p => p.id);
+        const targetIds = ['sheriff-check-input', 'don-check-input', 'shot-input'];
+        targetIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const val = parseInt(el.value) || 0;
+            if (val !== 0 && !aliveIds.includes(val)) el.value = '0';
+        });
+
+        ['lhc-1', 'lhc-2', 'lhc-3'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const val = parseInt(el.value) || 0;
+            if (val === 0) el.value = '';
+        });
+    }
+
+    function openNumpad(targetId) {
+        activeNumpadTargetId = targetId;
+        const modal = document.getElementById('numpad-modal');
+        if (modal) modal.style.display = 'flex';
+    }
+
+    function closeNumpad() {
+        const modal = document.getElementById('numpad-modal');
+        if (modal) modal.style.display = 'none';
+        activeNumpadTargetId = null;
+    }
+
+    function applyNumpadValue(value) {
+        if (!activeNumpadTargetId) return;
+        const input = document.getElementById(activeNumpadTargetId);
+        if (!input) return;
+        input.value = String(value);
+        closeNumpad();
+        updateNightInputs();
+        saveState();
+    }
+
+    function clearHistory() {
+        const ok = confirm('Вы уверены, что хотите удалить ВСЮ историю игр? Это действие нельзя отменить.');
+        if (!ok) return;
+        gameHistory = [];
+        gameCount = 0;
+        renderGameHistory();
+        saveState();
+    }
+
+    function downloadBackup() {
+        const state = saveState();
+        const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const date = new Date().toISOString().slice(0, 10);
+        a.href = url;
+        a.download = `mafia_backup_${date}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function triggerRestore() {
+        const input = document.getElementById('restore-input');
+        if (input) input.click();
+    }
+
+    function restoreBackup(input) {
+        const file = input && input.files ? input.files[0] : null;
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function() {
+            try {
+                const data = JSON.parse(reader.result);
+                if (!data || !Array.isArray(data.players)) {
+                    alert('Некорректный файл бэкапа.');
+                    return;
+                }
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+                location.reload();
+            } catch (e) {
+                alert('Не удалось прочитать файл бэкапа.');
+            }
+        };
+        reader.readAsText(file);
+        input.value = '';
+    }
+
+    function copyHistoryToClipboard() {
+        if (!gameHistory.length) {
+            alert('История пуста.');
+            return;
+        }
+        const tournament = document.getElementById('meta-tournament')?.value?.trim() || '-';
+        const judge = document.getElementById('meta-judge')?.value?.trim() || '-';
+        const table = document.getElementById('meta-table')?.value?.trim() || '-';
+        const lines = [];
+        lines.push(`🏆 ${tournament} | Стол: ${table} | Судья: ${judge}`);
+        lines.push('=========================================');
+        gameHistory.slice().reverse().forEach(entry => {
+            const counts = { mafia: 0, don: 0, sheriff: 0, civilian: 0 };
+            entry.players.forEach(p => {
+                if (counts[p.role] !== undefined) counts[p.role] += 1;
+            });
+            const reasonText = entry.reason ? ` (${entry.reason})` : '';
+            if (entry.winner === 'Ничья') {
+                lines.push(`Игра ${entry.gameNumber}: Итог: Ничья${reasonText}.`);
+            } else {
+                lines.push(`Игра ${entry.gameNumber}: Победа ${entry.winner}${reasonText} (${counts.mafia} маф, ${counts.don} дон).`);
+            }
+            lines.push(`Лучший ход: ${entry.lhcResult}.`);
+            lines.push('Игроки:');
+            entry.players.forEach(p => {
+                const roleLabel = p.role === 'civilian' ? 'Мир' : (p.role === 'mafia' ? 'Маф' : (p.role === 'don' ? 'Дон' : 'Шер'));
+                const noteText = p.notes ? ` | Заметка: ${p.notes}` : '';
+                lines.push(`${p.id}. ${roleLabel} (Ф:${p.fouls})${noteText}`);
+            });
+            lines.push('');
+        });
+        navigator.clipboard.writeText(lines.join('\n')).then(() => {
+            alert('История скопирована!');
+        }).catch(() => {
+            alert('Не удалось скопировать историю.');
+        });
+    }
+
+    function exportHistoryToCSV() {
+        if (!gameHistory.length) {
+            alert('История пуста.');
+            return;
+        }
+        const tournament = document.getElementById('meta-tournament')?.value?.trim() || '';
+        const judge = document.getElementById('meta-judge')?.value?.trim() || '';
+        const table = document.getElementById('meta-table')?.value?.trim() || '';
+
+        const escapeCsv = (value) => {
+            const text = value == null ? '' : String(value);
+            if (/[";\n\r]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+            return text;
+        };
+
+        const headers = [
+            'Игра', 'Турнир', 'Стол', 'Судья', 'Победитель', 'Причина', 'Дней', 'Лучший Ход'
+        ];
+        for (let i = 1; i <= 10; i += 1) {
+            headers.push(`Игрок ${i} Роль`);
+            headers.push(`Игрок ${i} Бонус`);
+        }
+
+        const rows = [headers.map(escapeCsv).join(';')];
+        gameHistory.slice().reverse().forEach(entry => {
+            const row = [
+                entry.gameNumber,
+                tournament,
+                table,
+                judge,
+                entry.winner || '',
+                entry.reason || '',
+                entry.days || 0,
+                entry.lhcResult || ''
+            ];
+            for (let i = 1; i <= 10; i += 1) {
+                const p = entry.players.find(player => player.id === i);
+                row.push(p ? getRoleLabel(p.role) : '');
+                row.push(p ? p.bonus : '');
+            }
+            rows.push(row.map(escapeCsv).join(';'));
+        });
+
+        const csvContent = '\uFEFF' + rows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const date = new Date().toISOString().slice(0, 10);
+        a.href = url;
+        a.download = `mafia_history_${date}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function formatTimer(value) {
+        const min = Math.floor(value / 60);
+        const sec = value % 60;
+        return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    }
+
+    function renderManualTimer() {
+        const display = document.getElementById('manual-timer-display');
+        if (!display) return;
+        display.textContent = formatTimer(manualTimerRemaining);
+        if (manualTimerRemaining <= 10) display.classList.add('timer-warning');
+        else display.classList.remove('timer-warning');
+    }
+
+    function setManualTimer(seconds, autoReset = true) {
+        manualTimerDuration = seconds;
+        if (autoReset) {
+            manualTimerRemaining = seconds;
+            renderManualTimer();
+        }
+    }
+
+    function startManualTimer() {
+        if (manualTimerInterval) return;
+        manualTimerInterval = setInterval(() => {
+            manualTimerRemaining = Math.max(0, manualTimerRemaining - 1);
+            renderManualTimer();
+            if (manualTimerRemaining <= 0) stopManualTimer();
+        }, 1000);
+        saveState();
+    }
+
+    function stopManualTimer() {
+        if (manualTimerInterval) clearInterval(manualTimerInterval);
+        manualTimerInterval = null;
+        saveState();
+    }
+
+    function resetManualTimer() {
+        stopManualTimer();
+        manualTimerRemaining = manualTimerDuration;
+        renderManualTimer();
+        saveState();
+    }
+
+    function doSheriffCheck() {
+        const tid = parseInt(document.getElementById('sheriff-check-input').value);
+        if(!tid) return;
+        const p = players.find(x => x.id === tid);
+        const res = document.getElementById('sheriff-res');
+        if (p.role === 'mafia' || p.role === 'don') {
+            res.innerText = "⚫ ЧЁРНЫЙ"; res.style.color = "var(--mafia-black)";
+        } else {
+            res.innerText = "🔴 КРАСНЫЙ"; res.style.color = "var(--civ-red)";
+        }
+        saveState();
+    }
+
+    function doDonCheck() {
+        const tid = parseInt(document.getElementById('don-check-input').value);
+        if(!tid) return;
+        const p = players.find(x => x.id === tid);
+        const res = document.getElementById('don-res');
+        if (p.role === 'sheriff') {
+            res.innerText = "✡ ШЕРИФ!"; res.style.color = "var(--sheriff-gold)";
+        } else {
+            res.innerText = "НЕ ШЕРИФ"; res.style.color = "#888";
+        }
+        saveState();
+    }
+
+    function checkBestMove() {
+        const v1 = parseInt(document.getElementById('lhc-1').value) || 0;
+        const v2 = parseInt(document.getElementById('lhc-2').value) || 0;
+        const v3 = parseInt(document.getElementById('lhc-3').value) || 0;
+        let blacksFound = 0;
+        [v1, v2, v3].forEach(id => {
+            const p = players.find(x => x.id === id);
+            if (p && (p.role === 'mafia' || p.role === 'don')) blacksFound++;
+        });
+        const res = document.getElementById('lhc-result');
+        if (blacksFound === 3) { res.innerText = "3/3 (ПОБЕДА ЛХ!)"; res.style.color = "var(--green-ui)"; } 
+        else if (blacksFound === 2) { res.innerText = "2/3 (Есть попадание)"; res.style.color = "var(--sheriff-gold)"; } 
+        else { res.innerText = `${blacksFound}/3 (Мимо)`; res.style.color = "var(--red-ui)"; }
+        saveState();
+    }
+
+    function nextDay(isAuto = false) {
+        advanceToDay(isAuto, { preserveNightData: false, silent: false });
+        saveState();
+    }
+
+    function updateDayManual(val) { 
+        dayNumber = parseInt(val) || 0; 
+        currentDayOpener = getDayOpener(dayNumber);
+        speechHasStarted = false;
+        saveState();
+    }
+
+    function saveState() {
+        const state = {
+            players,
+            dayNumber,
+            currentGamePhase,
+            gameHistory,
+            votingQueue,
+            crashIds,
+            nightKilledId,
+            speechHasStarted,
+            currentDayOpener,
+            currentCrashIndex,
+            currentTieCandidates,
+            votedVictimId,
+            lastActiveDayPlayer,
+            nightActionTaken,
+            skippedVotingDays,
+            dayAdvancedByMorning,
+            lastWordQueue,
+            lastWordIndex,
+            lastWordNextPhase,
+            tieSpeechQueue,
+            tieSpeechIndex,
+            nightShotVictimId,
+            overrideAutoBlock,
+            gameOver,
+            gameCount,
+            currentNotePlayerId,
+            lastWinner,
+            lastWinReason,
+            firstKilled,
+            metaTournament: document.getElementById('meta-tournament')?.value || "",
+            metaJudge: document.getElementById('meta-judge')?.value || "",
+            metaTable: document.getElementById('meta-table')?.value || "",
+            sheriffResText: document.getElementById('sheriff-res')?.innerText || "",
+            sheriffResColor: document.getElementById('sheriff-res')?.style.color || "",
+            donResText: document.getElementById('don-res')?.innerText || "",
+            donResColor: document.getElementById('don-res')?.style.color || "",
+            lhcResult: document.getElementById('lhc-result')?.innerText || "",
+            lhcBlockVisible: document.getElementById('lhc-block')?.style.display === 'block',
+            nightInputs: {
+                sheriff: document.getElementById('sheriff-check-input')?.value || "0",
+                don: document.getElementById('don-check-input')?.value || "0",
+                shot: document.getElementById('shot-input')?.value || "0",
+                lhc1: document.getElementById('lhc-1')?.value || "",
+                lhc2: document.getElementById('lhc-2')?.value || "",
+                lhc3: document.getElementById('lhc-3')?.value || ""
+            },
+            manualTimerDuration,
+            manualTimerRemaining,
+            consecutivePeacefulNights
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        return state;
+    }
+
+    function loadState() {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return false;
+        try {
+            const state = JSON.parse(raw);
+            players = Array.isArray(state.players) ? state.players : buildDefaultPlayers();
+            dayNumber = Number.isFinite(state.dayNumber) ? state.dayNumber : 0;
+            currentGamePhase = state.currentGamePhase || PHASE_ROLES;
+            gameHistory = Array.isArray(state.gameHistory) ? state.gameHistory : [];
+            votingQueue = Array.isArray(state.votingQueue) ? state.votingQueue : [];
+            crashIds = Array.isArray(state.crashIds) ? state.crashIds : [];
+            nightKilledId = state.nightKilledId ?? null;
+            speechHasStarted = !!state.speechHasStarted;
+            currentDayOpener = Number.isFinite(state.currentDayOpener) ? state.currentDayOpener : getDayOpener(dayNumber);
+            currentCrashIndex = Number.isFinite(state.currentCrashIndex) ? state.currentCrashIndex : 0;
+            currentTieCandidates = Array.isArray(state.currentTieCandidates) ? state.currentTieCandidates : [];
+            votedVictimId = state.votedVictimId ?? null;
+            lastActiveDayPlayer = state.lastActiveDayPlayer ?? null;
+            nightActionTaken = !!state.nightActionTaken;
+            skippedVotingDays = Number.isFinite(state.skippedVotingDays) ? state.skippedVotingDays : 0;
+            dayAdvancedByMorning = !!state.dayAdvancedByMorning;
+            lastWordQueue = Array.isArray(state.lastWordQueue) ? state.lastWordQueue : [];
+            lastWordIndex = Number.isFinite(state.lastWordIndex) ? state.lastWordIndex : 0;
+            lastWordNextPhase = state.lastWordNextPhase || PHASE_DAY_SPEECH;
+            tieSpeechQueue = Array.isArray(state.tieSpeechQueue) ? state.tieSpeechQueue : [];
+            tieSpeechIndex = Number.isFinite(state.tieSpeechIndex) ? state.tieSpeechIndex : 0;
+            nightShotVictimId = state.nightShotVictimId ?? null;
+            overrideAutoBlock = !!state.overrideAutoBlock;
+            gameOver = !!state.gameOver;
+            gameCount = Number.isFinite(state.gameCount) ? state.gameCount : gameHistory.length;
+            currentNotePlayerId = state.currentNotePlayerId ?? null;
+            lastWinner = state.lastWinner ?? null;
+            lastWinReason = state.lastWinReason ?? null;
+            firstKilled = state.firstKilled ?? null;
+
+            const metaTournament = document.getElementById('meta-tournament');
+            if (metaTournament) metaTournament.value = state.metaTournament || '';
+            const metaJudge = document.getElementById('meta-judge');
+            if (metaJudge) metaJudge.value = state.metaJudge || '';
+            const metaTable = document.getElementById('meta-table');
+            if (metaTable) metaTable.value = state.metaTable || '';
+
+            const dayInput = document.getElementById('day-number');
+            if (dayInput) dayInput.value = dayNumber;
+
+            const sheriffRes = document.getElementById('sheriff-res');
+            if (sheriffRes) {
+                sheriffRes.innerText = state.sheriffResText || "";
+                sheriffRes.style.color = state.sheriffResColor || "";
+            }
+            const donRes = document.getElementById('don-res');
+            if (donRes) {
+                donRes.innerText = state.donResText || "";
+                donRes.style.color = state.donResColor || "";
+            }
+            const lhcResult = document.getElementById('lhc-result');
+            if (lhcResult) lhcResult.innerText = state.lhcResult || "";
+            const lhcBlock = document.getElementById('lhc-block');
+            if (lhcBlock) lhcBlock.style.display = state.lhcBlockVisible ? 'block' : 'none';
+            const firstKilledEl = document.getElementById('first-killed-id');
+            if (firstKilledEl) firstKilledEl.innerText = firstKilled ?? '-';
+
+            const nightInputs = state.nightInputs || {};
+            const sheriffInput = document.getElementById('sheriff-check-input');
+            if (sheriffInput) sheriffInput.value = nightInputs.sheriff ?? '0';
+            const donInput = document.getElementById('don-check-input');
+            if (donInput) donInput.value = nightInputs.don ?? '0';
+            const shotInput = document.getElementById('shot-input');
+            if (shotInput) shotInput.value = nightInputs.shot ?? '0';
+            const lhc1 = document.getElementById('lhc-1');
+            if (lhc1) lhc1.value = nightInputs.lhc1 ?? '';
+            const lhc2 = document.getElementById('lhc-2');
+            if (lhc2) lhc2.value = nightInputs.lhc2 ?? '';
+            const lhc3 = document.getElementById('lhc-3');
+            if (lhc3) lhc3.value = nightInputs.lhc3 ?? '';
+
+            manualTimerDuration = Number.isFinite(state.manualTimerDuration) ? state.manualTimerDuration : 60;
+            manualTimerRemaining = Number.isFinite(state.manualTimerRemaining) ? state.manualTimerRemaining : manualTimerDuration;
+            consecutivePeacefulNights = Number.isFinite(state.consecutivePeacefulNights) ? state.consecutivePeacefulNights : 0;
+            renderManualTimer();
+
+            if (gameOver) setGameOverState(true);
+            renderGameHistory();
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // === WINDOW ONLOAD (В КОНЦЕ) ===
+    window.onload = function() {
+        const restored = loadState();
+        renderTable(); 
+        updatePhaseLabel();
+        syncPhaseSelect();
+        if (!restored) setGamePhase(PHASE_ROLES);
+        const noteInput = document.getElementById('note-input');
+        if (noteInput) {
+            noteInput.oninput = function() { onNoteInputChange(this.value); };
+        }
+        const noteModal = document.getElementById('note-modal');
+        if (noteModal) {
+            noteModal.onclick = function(event) {
+                if (event.target === noteModal) closeNoteModal();
+            };
+        }
+        const numpadModal = document.getElementById('numpad-modal');
+        if (numpadModal) {
+            numpadModal.onclick = function(event) {
+                if (event.target === numpadModal) closeNumpad();
+            };
+        }
+        renderManualTimer();
+        updateRoleBalanceUI();
+        renderPhaseButtons();
+    };
+
+    document.onkeydown = function(e) {
+        const key = e.key;
+        if (key === 'Escape') {
+            const numpadModal = document.getElementById('numpad-modal');
+            const noteModal = document.getElementById('note-modal');
+            const liftModal = document.getElementById('lift-modal');
+            const isVisible = (el) => el && window.getComputedStyle(el).display !== 'none';
+            if (isVisible(numpadModal)) closeNumpad();
+            if (isVisible(noteModal)) closeNoteModal();
+            if (isVisible(liftModal)) closeLiftModal();
+            return;
+        }
+
+        const isSpace = key === ' ' || e.code === 'Space';
+        if (!isSpace) return;
+
+        const target = e.target;
+        const tagName = target && target.tagName ? target.tagName.toLowerCase() : '';
+        if (tagName === 'input' || tagName === 'textarea' || (target && target.isContentEditable)) return;
+
+        e.preventDefault();
+
+        if (manualTimerInterval) stopManualTimer();
+        else startManualTimer();
+
+        if (typeof player !== 'undefined' && player && typeof player.getPlayerState === 'function' && window.YT && YT.PlayerState) {
+            const state = player.getPlayerState();
+            if (state === YT.PlayerState.PLAYING) player.pauseVideo();
+            else if (state === YT.PlayerState.PAUSED || state === YT.PlayerState.CUED) player.playVideo();
+        }
+    };
+</script>
+
+<script>
+    (function () {
+        function el(id) { return document.getElementById(id); }
+
+        function toast(msg) {
+            try { alert(msg); } catch (e) {}
+        }
+
+        function toAbsolute(link) {
+            try { return new URL(link, location.href).href; }
+            catch (e) { return link; }
+        }
+
+        async function initMultiplayerJudge() {
+            if (!window.SportMafiaSync) return;
+
+            var statusEl = el('mp-conn-status');
+            var presenceEl = el('mp-presence');
+            var qrEl = el('mp-qr');
+            var roomLabel = el('mp-room-label');
+            var createBtn = el('mp-create-room-btn');
+            var copyBtn = el('mp-copy-link-btn');
+            var seatSelect = el('mp-seat-select');
+
+            try {
+                var hostInit = await window.SportMafiaSync.initHost({
+                    statusEl: statusEl,
+                    presenceEl: presenceEl,
+                    qrEl: qrEl,
+                    stateProvider: function () {
+                        if (typeof window.saveState === 'function') return window.saveState();
+                        return null;
+                    },
+                    onError: function () {
+                        if (statusEl) statusEl.textContent = '🔴 Нет связи';
+                    },
+
+                    // --- Подписка на децентрализованные действия игроков ---
+
+                    onFoulsUpdate: function (foulsMap) {
+                        // foulsMap = { "1": { regular: 2, technical: 0 }, "5": { regular: 0, technical: 1 }, ... }
+                        // Обновляем локальный стейт судьи из данных Firebase
+                        Object.keys(foulsMap).forEach(function (seatStr) {
+                            var seat = Number(seatStr);
+                            var p = players.find(function (x) { return x.id === seat; });
+                            if (!p) return;
+                            var data = foulsMap[seatStr];
+                            if (typeof data === 'object' && data !== null) {
+                                p.fouls = Number(data.regular || 0);
+                                p.techFouls = Number(data.technical || 0);
+                            } else {
+                                p.fouls = Number(data || 0);
+                            }
+                            if (p.fouls >= 4) changePlayerStatus(seat, 'removed');
+                            if (p.techFouls >= 2) changePlayerStatus(seat, 'removed');
+                        });
+                        renderTable();
+                    },
+
+                    onNominationsUpdate: function (nominationsMap) {
+                        // nominationsMap = { "tokenHashABC": 3, "tokenHashDEF": 7, ... }
+                        // TODO: отобразить выставленных игроков в UI судьи.
+                        // Пример: подсветить выставленных или вывести список.
+                        console.log('[Judge] Nominations updated:', nominationsMap);
+                    },
+
+                    onTableEvent: function (event) {
+                        // event = { id, type, byTokenHash, ts }
+                        if (event && event.type === 'SKIP_SPEECH') {
+                            // Игрок пропустил речь — останавливаем таймер судьи
+                            if (typeof stopManualTimer === 'function') stopManualTimer();
+                            if (typeof renderManualTimer === 'function') renderManualTimer();
+                            console.log('[Judge] Speech skipped by', event.byTokenHash);
+                        }
+                    }
+                });
+
+                window.SportMafiaSync.bindJudgeAutoSync();
+
+                if (hostInit && hostInit.roomId) {
+                    roomLabel.textContent = 'Room: ' + hostInit.roomId;
+                }
+            } catch (err) {
+                if (statusEl) statusEl.textContent = '🔴 Нет связи';
+            }
+
+            // Reusable room creation function
+            async function createRoom() {
+                try {
+                    var res = await window.SportMafiaSync.hostCreateRoom();
+                    var rl = el('mp-room-label');
+                    if (rl) rl.textContent = 'Room: ' + res.roomId;
+                    if (typeof window.saveState === 'function') {
+                        var snap = window.saveState();
+                        window.SportMafiaSync.hostSyncStateSnapshot(snap);
+                    }
+                    toast('Комната создана: ' + res.roomId);
+                } catch (e) {
+                    var st = el('mp-conn-status');
+                    if (st) st.textContent = '🔴 Нет связи';
+                    toast('Нет связи. Действия будут отправлены после восстановления.');
+                }
+            }
+            window.createRoom = createRoom;
+
+            if (createBtn) {
+                createBtn.addEventListener('click', function () {
+                    createRoom();
+                });
+            }
+
+            // Auto-create room on page load
+            createRoom();
+
+            if (seatSelect) {
+                seatSelect.addEventListener('change', function () {
+                    window.SportMafiaSync.setQrSeat(Number(this.value || 1));
+                });
+            }
+
+            if (copyBtn) {
+                copyBtn.addEventListener('click', async function () {
+                    try {
+                        var links = window.SportMafiaSync.getLinks() || {};
+                        var seat = seatSelect ? Number(seatSelect.value || 1) : 1;
+                        var relative = links[seat];
+                        if (!relative) {
+                            toast('Сначала нажмите «Начать игру».');
+                            return;
+                        }
+                        var absolute = toAbsolute(relative);
+                        await navigator.clipboard.writeText(absolute);
+                        toast('Ссылка игрока ' + seat + ' скопирована');
+                    } catch (e) {
+                        toast('Не удалось скопировать ссылку');
+                    }
+                });
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initMultiplayerJudge);
+        } else {
+            initMultiplayerJudge();
+        }
+
+        // ================================================================
+        //  КОНЕЧНЫЙ АВТОМАТ АВТО-СУДЬИ (Гибридный режим)
+        // ================================================================
+        (function initAutoJudge() {
+            if (!window.SportMafiaSync) return;
+
+            var autoSettings = {};
+            var nightActionsMap = {};
+            var dayVotesMap = {};
+            var settingsUnsub = null;
+            var nightUnsub = null;
+            var dayVotesUnsub = null;
+            var autoPhaseTimer = null;
+            var speechTimerAutoInterval = null;
+            var autoSpeechIndex = 0;
+            var autoSpeechOrder = [];
+            var allSpeechesDone = false;
+
+            // --- Утилиты ---
+            function getAlivePlayers() {
+                return players.filter(function (p) { return p.status === 'alive'; });
+            }
+
+            function getAliveIds() {
+                return getAlivePlayers().map(function (p) { return p.id; });
+            }
+
+            function getTokenToSeatMap() {
+                return window.SportMafiaSync.getTokenHashToSeatMap();
+            }
+
+            function getSeatToRoleMap() {
+                var map = {};
+                players.forEach(function (p) { map[p.id] = p.role; });
+                return map;
+            }
+
+            // --- Подписка на settings ---
+            function bindAutoSettings() {
+                try {
+                    settingsUnsub = window.SportMafiaSync.listenToRoomSettings(function (s) {
+                        var prev = autoSettings;
+                        autoSettings = s || {};
+                        onAutoSettingsChanged(prev, autoSettings);
+                    });
+                } catch (e) { /* комната ещё не создана */ }
+            }
+
+            function onAutoSettingsChanged(prev, next) {
+                // Включили autoNight — подписываемся на nightActions
+                if (next.autoNight && !nightUnsub) {
+                    nightUnsub = window.SportMafiaSync.listenToNightActions(function (map) {
+                        nightActionsMap = map || {};
+                        tryProcessNight();
+                    });
+                }
+                if (!next.autoNight && nightUnsub) {
+                    nightUnsub();
+                    nightUnsub = null;
+                    nightActionsMap = {};
+                }
+
+                // Включили autoVoting — подписываемся на dayVotes
+                if (next.autoVoting && !dayVotesUnsub) {
+                    dayVotesUnsub = window.SportMafiaSync.listenToDayVotes(function (map) {
+                        dayVotesMap = map || {};
+                        tryProcessVoting();
+                    });
+                }
+                if (!next.autoVoting && dayVotesUnsub) {
+                    dayVotesUnsub();
+                    dayVotesUnsub = null;
+                    dayVotesMap = {};
+                }
+
+                // Включили autoPhaseShift — запускаем отслеживание таймеров
+                if (next.autoPhaseShift && !speechTimerAutoInterval) {
+                    startSpeechTimerWatcher();
+                }
+                if (!next.autoPhaseShift && speechTimerAutoInterval) {
+                    clearInterval(speechTimerAutoInterval);
+                    speechTimerAutoInterval = null;
+                }
+
+                console.log('[AutoJudge] settings:', next);
+            }
+
+            // ==========================================================
+            //  autoPhaseShift: автоматическая смена фаз по таймеру
+            // ==========================================================
+            function startSpeechTimerWatcher() {
+                if (speechTimerAutoInterval) clearInterval(speechTimerAutoInterval);
+
+                speechTimerAutoInterval = setInterval(function () {
+                    if (!autoSettings.autoPhaseShift) return;
+                    if (currentGamePhase !== 'PHASE_DAY_SPEECH') return;
+
+                    // Проверяем, закончился ли таймер речи
+                    if (typeof manualTimerRemaining !== 'undefined' && manualTimerRemaining <= 0) {
+                        // Таймер истёк → переходим к следующему игроку
+                        autoAdvanceToNextSpeaker();
+                    }
+                }, 1000);
+            }
+
+            function autoAdvanceToNextSpeaker() {
+                if (currentGamePhase !== 'PHASE_DAY_SPEECH') return;
+                if (!autoSettings.autoPhaseShift) return;
+
+                var aliveIds = getAliveIds();
+                if (aliveIds.length === 0) return;
+
+                // Определяем порядок речей
+                if (autoSpeechOrder.length === 0 || !allSpeechesDone) {
+                    buildSpeechOrder();
+                }
+
+                autoSpeechIndex++;
+
+                if (autoSpeechIndex >= autoSpeechOrder.length) {
+                    // Все поговорили → переходим к голосованию
+                    allSpeechesDone = true;
+                    autoSpeechIndex = 0;
+                    autoSpeechOrder = [];
+
+                    if (typeof setGamePhase === 'function') {
+                        setGamePhase('PHASE_VOTING');
+                        if (typeof saveState === 'function') saveState();
+                        console.log('[AutoJudge] Все речи завершены → PHASE_VOTING');
+                    }
+                    return;
+                }
+
+                // Передаём слово следующему
+                var nextId = autoSpeechOrder[autoSpeechIndex];
+                if (typeof handleDaySpeechClick === 'function') {
+                    handleDaySpeechClick(nextId);
+                    console.log('[AutoJudge] Слово передано игроку', nextId);
+                }
+            }
+
+            function buildSpeechOrder() {
+                var aliveIds = getAliveIds();
+                var opener = typeof currentDayOpener !== 'undefined' ? currentDayOpener : 1;
+
+                // Строим очередь от opener по кругу
+                autoSpeechOrder = [];
+                var startIdx = aliveIds.indexOf(opener);
+                if (startIdx === -1) startIdx = 0;
+
+                for (var i = 0; i < aliveIds.length; i++) {
+                    autoSpeechOrder.push(aliveIds[(startIdx + i) % aliveIds.length]);
+                }
+                autoSpeechIndex = -1; // будет увеличен при первом вызове
+                allSpeechesDone = false;
+            }
+
+            // ==========================================================
+            //  autoVoting: собираем голоса с телефонов
+            // ==========================================================
+            function tryProcessVoting() {
+                if (!autoSettings.autoVoting) return;
+                if (currentGamePhase !== 'PHASE_VOTING') return;
+
+                var tokenToSeat = getTokenToSeatMap();
+                var aliveIds = getAliveIds();
+
+                // Считаем голоса только от живых игроков
+                var voteCount = {};
+                var totalVoters = 0;
+
+                Object.keys(dayVotesMap).forEach(function (tokenHash) {
+                    var vote = dayVotesMap[tokenHash];
+                    var voterSeat = tokenToSeat[tokenHash];
+                    if (!voterSeat) return;
+                    // Проверяем, жив ли голосующий
+                    var voterPlayer = players.find(function (p) { return p.id === voterSeat; });
+                    if (!voterPlayer || voterPlayer.status !== 'alive') return;
+
+                    var targetId = Number(vote.targetId || vote);
+                    if (!Number.isFinite(targetId) || targetId < 1 || targetId > 10) return;
+
+                    totalVoters++;
+                    voteCount[targetId] = (voteCount[targetId] || 0) + 1;
+                });
+
+                // Ждём, пока проголосуют все живые
+                if (totalVoters < aliveIds.length) return;
+
+                // Определяем максимум
+                var maxVotes = 0;
+                var winners = [];
+                Object.keys(voteCount).forEach(function (idStr) {
+                    var id = Number(idStr);
+                    var count = voteCount[idStr];
+                    if (count > maxVotes) {
+                        maxVotes = count;
+                        winners = [id];
+                    } else if (count === maxVotes) {
+                        winners.push(id);
+                    }
+                });
+
+                if (winners.length === 0 || maxVotes === 0) {
+                    console.log('[AutoJudge] Голоса: никого не выбрали, переходим в ночь');
+                    goToNight();
+                    return;
+                }
+
+                if (winners.length === 1) {
+                    // Однозначная казнь
+                    var victimId = winners[0];
+                    console.log('[AutoJudge] Казнь игрока', victimId, '(' + maxVotes + ' голосов)');
+                    if (typeof changePlayerStatus === 'function') {
+                        changePlayerStatus(victimId, 'voted');
+                    }
+                    // Очищаем голоса
+                    window.SportMafiaSync.clearDayVotes().catch(function () {});
+                    // Переходим в ночь (через последнее слово)
+                    if (typeof beginLastWord === 'function') {
+                        beginLastWord([victimId], 'PHASE_NIGHT', false);
+                    } else {
+                        goToNight();
+                    }
+                } else {
+                    // Ничья — переходим в ночь без казни (упрощённая логика)
+                    console.log('[AutoJudge] Ничья:', winners, '→ никто не уходит, переход в ночь');
+                    window.SportMafiaSync.clearDayVotes().catch(function () {});
+                    goToNight();
+                }
+            }
+
+            function goToNight() {
+                if (typeof startNightPhase === 'function') {
+                    startNightPhase();
+                } else if (typeof setGamePhase === 'function') {
+                    setGamePhase('PHASE_NIGHT');
+                }
+                if (typeof saveState === 'function') saveState();
+            }
+
+            // ==========================================================
+            //  autoNight: обрабатываем ночные действия с телефонов
+            // ==========================================================
+            function tryProcessNight() {
+                if (!autoSettings.autoNight) return;
+                if (currentGamePhase !== 'PHASE_NIGHT') return;
+
+                var tokenToSeat = getTokenToSeatMap();
+                var seatToRole = getSeatToRoleMap();
+                var aliveIds = getAliveIds();
+
+                // Собираем действия по ролям
+                var mafiaShots = {};    // seat → targetId
+                var sheriffCheck = null; // targetId
+                var donCheck = null;     // targetId
+
+                Object.keys(nightActionsMap).forEach(function (tokenHash) {
+                    var action = nightActionsMap[tokenHash];
+                    var seat = tokenToSeat[tokenHash] || action.seat;
+                    if (!seat) return;
+                    var role = seatToRole[seat];
+                    var targetId = Number(action.targetId);
+
+                    if (action.actionType === 'mafiaShot' && (role === 'mafia' || role === 'don')) {
+                        mafiaShots[seat] = targetId;
+                    }
+                    if (action.actionType === 'sheriffCheck' && role === 'sheriff') {
+                        sheriffCheck = targetId;
+                    }
+                    if (action.actionType === 'donCheck' && role === 'don') {
+                        donCheck = targetId;
+                    }
+                });
+
+                // Считаем живых мафиози
+                var aliveMafia = players.filter(function (p) {
+                    return p.status === 'alive' && (p.role === 'mafia' || p.role === 'don');
+                });
+                var aliveSheriff = players.find(function (p) {
+                    return p.status === 'alive' && p.role === 'sheriff';
+                });
+
+                // Проверяем, все ли мафиози отстрелялись
+                var mafiaVoted = Object.keys(mafiaShots).length;
+                if (mafiaVoted < aliveMafia.length) return; // ждём
+
+                // Шериф ещё не проверил (если жив)
+                if (aliveSheriff && sheriffCheck === null) return;
+
+                // === Все ночные действия собраны — обрабатываем ===
+                console.log('[AutoJudge] Ночные действия собраны:', {
+                    mafiaShots: mafiaShots,
+                    sheriffCheck: sheriffCheck,
+                    donCheck: donCheck
+                });
+
+                // 1) Выстрел мафии — определяем консенсус
+                var shotTargets = {};
+                Object.keys(mafiaShots).forEach(function (seat) {
+                    var t = mafiaShots[seat];
+                    shotTargets[t] = (shotTargets[t] || 0) + 1;
+                });
+
+                var finalTarget = null;
+                var maxShots = 0;
+                Object.keys(shotTargets).forEach(function (tid) {
+                    if (shotTargets[tid] > maxShots) {
+                        maxShots = shotTargets[tid];
+                        finalTarget = Number(tid);
+                    }
+                });
+
+                // 2) Убиваем цель мафии
+                if (finalTarget && finalTarget > 0) {
+                    if (typeof handleNightShotClick === 'function') {
+                        handleNightShotClick(finalTarget);
+                    } else if (typeof changePlayerStatus === 'function') {
+                        changePlayerStatus(finalTarget, 'killed');
+                    }
+                    console.log('[AutoJudge] Мафия убила игрока', finalTarget);
+                } else {
+                    // Промах
+                    console.log('[AutoJudge] Мафия промахнулась');
+                    if (typeof consecutivePeacefulNights !== 'undefined') {
+                        consecutivePeacefulNights++;
+                    }
+                }
+
+                // 3) Результат проверки шерифа (логируем, результат уже отображён на телефоне)
+                if (sheriffCheck) {
+                    var target = players.find(function (p) { return p.id === sheriffCheck; });
+                    if (target) {
+                        var isBlack = target.role === 'mafia' || target.role === 'don';
+                        console.log('[AutoJudge] Шериф проверил', sheriffCheck, '→', isBlack ? 'ЧЁРНЫЙ' : 'КРАСНЫЙ');
+                        // Обновляем UI ночной панели судьи
+                        var sheriffInput = document.getElementById('sheriff-check-input');
+                        if (sheriffInput) sheriffInput.value = sheriffCheck;
+                        if (typeof doSheriffCheck === 'function') doSheriffCheck();
+                    }
+                }
+
+                // 4) Результат проверки дона
+                if (donCheck) {
+                    var donTarget = players.find(function (p) { return p.id === donCheck; });
+                    if (donTarget) {
+                        var isSheriff = donTarget.role === 'sheriff';
+                        console.log('[AutoJudge] Дон проверил', donCheck, '→', isSheriff ? 'ШЕРИФ' : 'НЕ ШЕРИФ');
+                        var donInput = document.getElementById('don-check-input');
+                        if (donInput) donInput.value = donCheck;
+                        if (typeof doDonCheck === 'function') doDonCheck();
+                    }
+                }
+
+                // 5) Очищаем nightActions
+                window.SportMafiaSync.clearNightActions().catch(function () {});
+
+                // 6) Переходим к утру
+                setTimeout(function () {
+                    if (typeof advanceToDay === 'function') {
+                        advanceToDay(true, { silent: true });
+                        console.log('[AutoJudge] Переход к утру (День ' + dayNumber + ')');
+                    }
+                    if (typeof saveState === 'function') saveState();
+                }, 1500);
+            }
+
+            // Инициализация: ждём создание комнаты, потом привязываем
+            function waitAndBind() {
+                var attempts = 0;
+                var iv = setInterval(function () {
+                    attempts++;
+                    var roomId = window.SportMafiaSync.getRoomId();
+                    if (roomId) {
+                        clearInterval(iv);
+                        bindAutoSettings();
+                        console.log('[AutoJudge] Привязан к комнате', roomId);
+                    }
+                    if (attempts > 60) clearInterval(iv); // 30 секунд максимум
+                }, 500);
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', waitAndBind);
+            } else {
+                waitAndBind();
+            }
+        })();
+    })();
+</script>
+
+</body>
+</html>

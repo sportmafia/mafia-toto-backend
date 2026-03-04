@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Check PRO v18</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="toast-container"></div>
+
+    <h1>👉 Косматика</h1>
+    <h4>Тренажер и Калькулятор</h4>
+
+    <div class="container">
+        
+        <div id="timer-bar-container"><div id="timer-bar"></div></div>
+
+        <div class="mode-select-container">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap: 10px;">
+                <button id="btn-open-catalog" class="catalog-trigger-btn">
+                    <span id="current-mode-label">👉 Косматика (Easy)</span>
+                    <span style="font-size: 0.8em; opacity: 0.7;">▼</span>
+                </button>
+
+                <div style="display: flex; gap: 5px;">
+                    <button class="help-trigger-btn update-btn" onclick="openChangelog()">✨ Update 18</button>
+                    <button class="help-trigger-btn" onclick="openRules()">📖 Rules</button>
+                </div>
+            </div>
+            <div id="bonus-indicator" class="bonus-badge" style="display:none; margin-top:10px;">⚡ +20 сек</div>
+            <div id="mode-lock-msg" style="display:none; color: #ff5252; font-size: 0.85em; margin-top: 8px;">🔒 Смена режима заблокирована таймером!</div>
+        </div>
+
+        <div id="view-trainer">
+            
+            <div id="drill-badge" class="drill-badge">🎯 Работа над ошибками: осталось 2</div>
+
+
+            <div class="info-panel" id="trainer-info-panel">
+                <div class="info-row">
+                    <span class="info-label" id="lbl-kosm">Косматика:</span>
+                    <span class="info-value" id="t-kosm-disp">Loading...</span>
+                </div>
+                <div class="info-row" id="row-info-black">
+                    <span class="info-label">Черная команда:</span>
+                    <span class="info-value" id="t-black-disp">Loading...</span>
+                </div>
+                <div class="info-row" id="row-info-don">
+                    <span class="info-label">Дон сидит на:</span>
+                    <span class="info-value"><span id="t-don-disp" class="highlight-don">...</span></span>
+                </div>
+                
+                <!-- Индикатор контекста: Единственный Шериф vs 2 Версии -->
+                <div id="sheriff-context-badge" style="display:none; margin-top:15px; padding:10px 15px; border-radius:6px; font-weight:bold; font-size:0.95em; text-align:center; border:2px solid;">
+                    <div id="sheriff-context-icon" style="font-size:1.3em; margin-bottom:5px;"></div>
+                    <div id="sheriff-context-text"></div>
+                    <div id="sheriff-context-hint" style="font-size:0.85em; margin-top:5px; opacity:0.9;"></div>
+                </div>
+                
+                <hr style="border-color: #444; opacity: 0.3; margin: 15px 0;">
+
+                <div id="panel-history" style="font-size: 1.1em; line-height: 1.6; margin-bottom: 20px; color: #ccc;">
+                </div>
+
+                <div id="panel-action" style="font-size: 1.1em; line-height: 1.6; margin-bottom: 25px;">
+                </div>
+
+                <div id="panel-night-info" style="font-size: 1.2em; font-weight: bold; margin-bottom: 10px; color: white;">
+                    Инициализация системы...
+                </div>
+
+                <div id="night-title" style="display:none;"></div>
+                <div id="scenario-desc" style="display:none;"></div>
+                <button id="btn-share-layout" class="secondary" style="margin-top: 15px; display: none; background: #333; border: 1px solid #555;">
+                    📤 Поделиться раскладом
+                </button>
+                <div class="cta-text">
+                    <span class="cta-yellow">В кого стрелять?</span> Нажми на номер
+                </div>
+                <div id="error-log"></div>
+            </div>
+
+            <div class="table-visual" id="trainer-table"></div>
+            
+            <div id="trainer-result" class="result-box"></div>
+
+            <div class="control-group">
+                <button class="secondary" id="skip-btn">Пропустить / Новая задача</button>
+            </div>
+
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <span>Всего игр</span>
+                    <span class="stat-val" id="st-total">0</span>
+                </div>
+                <div class="stat-item">
+                    <span style="color:var(--accent)">Ошибки</span>
+                    <span class="stat-val" id="st-wrong" style="color:var(--accent)">0</span>
+                </div>
+                <div class="stat-item">
+                    <span style="color:var(--success)">Всего верно (Ветеран)</span>
+                    <span class="stat-val" id="st-correct" style="color:var(--success)">0</span>
+                </div>
+                <div class="stat-item">
+                    <span style="color:gold">Стрик (Снайпер)</span>
+                    <span class="stat-val" id="st-streak" style="color:gold">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-calc" style="display:none;">
+
+        <div id="view-calc-check" style="display:none;">
+            <div class="control-group" style="background: #252525; padding: 10px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #18ffff;">
+                <div style="margin-bottom:10px; color:#18ffff; font-weight:bold;">
+                    🔎 Проверка
+                </div>
+            </div>
+
+            <div class="control-group" id="check-calc-kosm-group">
+                <div class="row">
+                    <div class="half">
+                        <label>Проверка (напр. "-2 0 5"):</label>
+                        <input type="text" id="check-kosm-list" placeholder="-2 0 5" value="258" maxlength="15">
+                    </div>
+                    <div class="half">
+                        <label>Номер Активной Проверки:</label>
+                        <select id="check-kosm-index">
+                            <option value="0">1-я цифра</option>
+                            <option value="1">2-я цифра</option>
+                            <option value="2">3-я цифра</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="row">
+                    <div class="half">
+                        <label>Черная команда (напр. "012" 0 считается как цифра 10):</label>
+                        <input type="text" id="check-black-team" placeholder="012" value="012" maxlength="3">
+                    </div>
+                    <div class="half">
+                        <label>Номер Дона:</label>
+                        <input type="text" id="check-don-seat" value="0" maxlength="1">
+                    </div>
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="row">
+                    <div class="half">
+                        <label>Номер ночи (стрельба с 1-й):</label>
+                        <input type="text" id="check-night-num" value="1" maxlength="1">
+                    </div>
+                    <div class="half">
+                        <label>Шериф сидит на:</label>
+                        <input type="text" id="check-sheriff-seat" value="" placeholder="?" maxlength="1">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <label>Кто ушел? (Нажми на игрока, чтобы он потух/умер):</label>
+                <div class="table-visual" id="check-seat-container"></div>
+            </div>
+
+            <div class="control-group">
+                <label>Проверенные ЧЕРНЫЕ по версии Дона и Шерифа:</label>
+                <input type="text" id="check-checked-blacks" placeholder="Только игроки из Чёрной команды">
+            </div>
+            <div class="control-group">
+                <label>Проверенные ЧЕРНЫЕ по версии Шерифа:</label>
+                <input type="text" id="check-sheriff-checked-blacks" placeholder="Только игроки из Чёрной Команды" maxlength="3">
+            </div>
+            <div class="control-group don-action-block">
+                <label>Действие Дона после начала голосования:</label>
+                <select id="check-don-action">
+                    <option value="none">Ничего не показал / Пас</option>
+                    <option value="digit">👆 Цифра</option>
+                </select>
+                <div id="check-digit-input-div" style="display:none; margin-top:10px;">
+                    <label>Какая цифра?</label>
+                    <input type="number" id="check-don-digit" placeholder="Цифра">
+                </div>
+            </div>
+            <button id="check-calc-btn">РАССЧИТАТЬ</button>
+            <div id="check-calc-result" class="result-box"></div>
+        </div>
+        
+
+        
+        <div id="am-selection-modal">
+            <div style="position:absolute; top:15px; right:15px; cursor:pointer; font-size:24px; color:#aaa;" onclick="getEl('am-selection-modal').style.display='none';">×</div>
+            <h3 style="color:#e91e63; margin-bottom:30px; text-transform:uppercase; font-size:1.5em;">ВЫБОР СИСТЕМЫ</h3>
+            
+            <div style="margin-bottom:30px;">
+                <h4 style="color:#fff; margin-bottom:15px; font-size:1.1em;">КОСМАТИКА (PRACTICE)</h4>
+                <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; max-width:320px; margin:0 auto;">
+                    <button class="am-option-btn am-super" style="grid-column: span 2;" onclick="selectModeFromModal('newbie')">👶 Newbie</button>
+                    <button class="am-option-btn am-easy" onclick="selectModeFromModal('easy')">📚 Easy</button>
+                    <button class="am-option-btn am-hard" onclick="selectModeFromModal('hard')">🔥 Hard</button>
+                    <button class="am-option-btn am-nightmare" onclick="selectModeFromModal('nightmare')">💀 Nightmare</button>
+                    <button class="am-option-btn am-impossible" onclick="selectModeFromModal('impossible')">☢️ Impossible</button>
+                </div>
+            </div>
+            
+            <div style="margin-bottom:30px;">
+                <h4 style="color:#fff; margin-bottom:15px; font-size:1.1em;">👉👉 АВТОМАТ (PRACTICE)</h4>
+                <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; max-width:320px; margin:0 auto;">
+                    <button class="am-option-btn am-super" style="grid-column: span 2;" onclick="selectModeFromModal('automatch_newbie')">👶 Newbie</button>
+                    <button class="am-option-btn am-easy" onclick="selectModeFromModal('automatch_easy')">📚 Easy</button>
+                    <button class="am-option-btn am-hard" onclick="selectModeFromModal('automatch_hard')">🔥 Hard</button>
+                    <button class="am-option-btn am-nightmare" onclick="selectModeFromModal('automatch_nightmare')">💀 Nightmare</button>
+                    <button class="am-option-btn am-impossible" onclick="selectModeFromModal('automatch_impossible')">☢️ Impossible</button>
+                </div>
+            </div>
+            
+            <div style="margin-bottom:30px;">
+                <h4 style="color:#e91e63; margin-bottom:15px; font-size:1.1em;">👋👋 Ахалай-махалай (PRACTICE)</h4>
+                <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; max-width:320px; margin:0 auto;">
+                    <button class="am-option-btn am-super" style="grid-column: span 2;" onclick="selectModeFromModal('ahalay_newbie')">👶 Newbie</button>
+                    <button class="am-option-btn am-easy" onclick="selectModeFromModal('ahalay_easy')">📚 Easy</button>
+                    <button class="am-option-btn am-hard" onclick="selectModeFromModal('ahalay_hard')">🔥 Hard</button>
+                    <button class="am-option-btn am-nightmare" onclick="selectModeFromModal('ahalay_nightmare')">💀 Nightmare</button>
+                    <button class="am-option-btn am-impossible" onclick="selectModeFromModal('ahalay_impossible')">☢️ Impossible</button>
+                </div>
+            </div>
+            
+            <div style="margin-bottom:30px;">
+                <h4 style="color:var(--winchester-color); margin-bottom:15px; font-size:1.1em;">👉✊ ВИНЧЕСТЕР (PRACTICE) - Beta</h4>
+                <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; max-width:320px; margin:0 auto;">
+                    <button class="am-option-btn am-super" style="grid-column: span 2;" onclick="selectModeFromModal('winchester_newbie')">👶 Newbie</button>
+                    <button class="am-option-btn am-easy" onclick="selectModeFromModal('winchester_easy')">📚 Easy</button>
+                    <button class="am-option-btn am-hard" onclick="selectModeFromModal('winchester_hard')">🔥 Hard</button>
+                    <button class="am-option-btn am-nightmare" onclick="selectModeFromModal('winchester_nightmare')">💀 Nightmare</button>
+                    <button class="am-option-btn am-impossible" onclick="selectModeFromModal('winchester_impossible')">☢️ Impossible</button>
+                </div>
+            </div>
+            
+            <div style="margin-bottom:30px;">
+                <h4 style="color:var(--bazooka-color); margin-bottom:15px; font-size:1.1em;">🚀 БАЗУКА (PRACTICE)</h4>
+                <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; max-width:320px; margin:0 auto;">
+                    <button class="am-option-btn am-super" style="grid-column: span 2;" onclick="selectModeFromModal('bazooka_newbie')">👶 Newbie</button>
+                    <button class="am-option-btn am-easy" onclick="selectModeFromModal('bazooka_easy')">📚 Easy</button>
+                    <button class="am-option-btn am-hard" onclick="selectModeFromModal('bazooka_hard')">🔥 Hard</button>
+                    <button class="am-option-btn am-nightmare" onclick="selectModeFromModal('bazooka_nightmare')">💀 Nightmare</button>
+                    <button class="am-option-btn am-impossible" onclick="selectModeFromModal('bazooka_impossible')">☢️ Impossible</button>
+                </div>
+            </div>
+            
+            <div style="margin-bottom:30px;">
+                <h4 style="color:#fff; margin-bottom:15px; font-size:1.1em;">🧮 КАЛЬКУЛЯТОРЫ СТРЕЛЬБЫ</h4>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
+                    <button class="am-option-btn" style="border-color: #fbc02d; background: linear-gradient(135deg, rgba(251, 192, 45, 0.2), rgba(251, 192, 45, 0.4)); color: #fdd835;" onclick="selectModeFromModal('calc')">👉 Косматика</button>
+                    <button class="am-option-btn" style="border-color: #42a5f5; background: linear-gradient(135deg, rgba(66, 165, 245, 0.2), rgba(66, 165, 245, 0.4)); color: #90caf9;" onclick="selectModeFromModal('automatch_calc')">👉👉 Автомат</button>
+                    <button class="am-option-btn" style="border-color: #e91e63; background: linear-gradient(135deg, rgba(233, 30, 99, 0.4)); color: #f48fb1;" onclick="selectModeFromModal('ahalay_calc')">👋👋 Ахалай</button>
+                    <button class="am-option-btn" style="border-color: #ff7043; background: linear-gradient(135deg, rgba(255, 112, 67, 0.2), rgba(255, 112, 67, 0.4)); color: #ff8a65;" onclick="selectModeFromModal('winchester_calc')">👉✊ Винчестер</button>
+                    <button class="am-option-btn" style="border-color: #e91e63; background: linear-gradient(135deg, rgba(233, 30, 99, 0.2), rgba(233, 30, 99, 0.4)); color: #f48fb1;" onclick="selectModeFromModal('bazooka_calc')">🚀 Базука</button>
+                </div>
+            </div>
+            
+            <div style="margin-bottom:30px;">
+                <h4 style="color:#4fc3f7; margin-bottom:15px; font-size:1.1em;">👋👋 В РАЗРАБОТКЕ</h4>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
+                    <button class="am-option-btn" style="border-color: #666; background: linear-gradient(135deg, rgba(100, 100, 100, 0.2), rgba(100, 100, 100, 0.4)); color: #999; opacity:0.5; cursor:not-allowed;" disabled>🔒 Росомаха</button>
+                </div>
+            </div>
+            
+            <button id="btn-cancel-auto" class="secondary" style="margin-top:15px; width:200px;">Отмена</button>
+        </div>
+
+        <!-- СЕКЦИЯ: Счёт игры (Math Mode) -->
+    </div>
+
+
+    <div id="rules-modal" class="modal-overlay" onclick="closeRules()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <button class="close-btn" onclick="closeRules()">×</button>
+            <div id="rules-text-container"></div>
+        </div>
+    </div>
+
+    <div id="level-up-modal" class="modal-overlay" onclick="closeLevelUpModal()">
+        <div class="modal-content" style="max-width:500px; text-align:center;" onclick="event.stopPropagation()">
+            <button class="close-btn" onclick="closeLevelUpModal()">×</button>
+            <div id="level-up-content"></div>
+        </div>
+    </div>
+
+    <div id="catalog-modal" class="modal-overlay" onclick="closeCatalog()">
+        <div class="modal-content catalog-content" onclick="event.stopPropagation()">
+            <button class="close-btn" onclick="closeCatalog()">×</button>
+            
+            <!-- Левая колонка: Sidebar -->
+            <div class="catalog-sidebar">
+                <div style="padding: 12px 15px 0;">
+                    <button onclick="window.location.href='index.html'" class="help-trigger-btn" style="width:100%; background:var(--card-bg); border:1px solid #444; font-size:0.9em; padding:8px 12px; border-radius:6px; cursor:pointer; color:#ccc;">← На главную</button>
+                </div>
+                <div style="padding: 20px; color: #777; font-size: 0.8em;">КАТЕГОРИИ</div>
+                <button class="sidebar-btn active" onclick="showTab('tab-check', this)">🔎 Проверка (режимы)</button>
+                <button class="sidebar-btn" onclick="showTab('tab-kosm', this)">👉 Косматика</button>
+                <button class="sidebar-btn" onclick="showTab('tab-drills', this)">🧩 Дриллы (Фазы)</button>
+                <button class="sidebar-btn" onclick="showTab('tab-spec', this)">🐾 Все динамики</button>
+                <button class="sidebar-btn" onclick="showTab('tab-math', this)" id="math-mode-btn">🧮 Счёт игры</button>
+                <button class="sidebar-btn" onclick="showTab('tab-new', this)">🆕 Новинки (Beta версии)</button>
+                <button class="sidebar-btn" onclick="showTab('tab-calc', this)">🧮 Калькуляторы</button>
+                <button class="sidebar-btn" onclick="window.location.href='player.html'">🎮 Игрок</button>
+                <button class="sidebar-btn" onclick="window.location.href='judge.html'">⚖️ Судья</button>
+                <button class="sidebar-btn" onclick="window.location.href='voting.html'">⚖️ Попилы</button>
+            </div>
+
+            <!-- Правая колонка: Main -->
+            <div class="catalog-main">
+                <input type="text" id="cat-search" placeholder="🔍 Найти..." 
+                       style="padding: 12px 15px; background: #1e1e1e; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 1em; box-sizing: border-box;"
+                       onkeyup="filterCatalog()"
+                       oninput="filterCatalog()">
+
+                <div class="catalog-scroll-area">
+                                <!-- Вкладка: собственный режим -->
+                <div id="tab-check" class="catalog-tab-content">
+                    <div class="catalog-section">
+                        <h4 class="cat-title" style="color:var(--check-color, #18ffff);">🔎 Проверка (ClassicFire)</h4>
+                <div class="cat-grid">
+                    <div class="cat-card check" onclick="selectMode('check_newbie', '🔎 Проверка (Newbie)')">
+                        <div class="cat-icon">👶</div>
+                        <div class="cat-name">Newbie</div>
+                    </div>
+                    <div class="cat-card check" onclick="selectMode('check_easy', '🔎 Проверка (Easy Mode)')">
+                        <div class="cat-icon">🙂</div>
+                        <div class="cat-name">Easy Mode</div>
+                    </div>
+                    <div class="cat-card check" onclick="selectMode('check_hard', '🔎 Проверка (Hard Mode)')">
+                        <div class="cat-icon">😐</div>
+                        <div class="cat-name">Hard Mode</div>
+                    </div>
+                    <div class="cat-card check nm" onclick="selectMode('check_nightmare', '🔎 Проверка (Nightmare)')">
+                        <div class="cat-icon">😱</div>
+                        <div class="cat-name">Nightmare</div>
+                    </div>
+                    <div class="cat-card check impossible" onclick="selectMode('check_impossible', '🔎 Проверка (Impossible)')">
+                        <div class="cat-icon">💀</div>
+                        <div class="cat-name">Impossible</div>
+                    </div>
+                        </div>
+                    </div>
+                </div>
+
+<!-- Вкладка: Косматика -->
+                <div id="tab-kosm" class="catalog-tab-content" style="display:none;">
+                    <div class="catalog-section">
+                        <h4 class="cat-title">👉 Косматика (Practice)</h4>
+                <div class="cat-grid">
+                    <div class="cat-card" onclick="changeDifficulty('newbie')">
+                        <div class="cat-icon">👶</div>
+                        <div class="cat-name">Newbie</div>
+                    </div>
+                    <div class="cat-card" onclick="changeDifficulty('easy')">
+                        <div class="cat-icon">📚</div>
+                        <div class="cat-name">Easy Mode</div>
+                    </div>
+                    <div class="cat-card hard" onclick="changeDifficulty('hard')">
+                        <div class="cat-icon">🔥</div>
+                        <div class="cat-name">Hard</div>
+                    </div>
+                    <div class="cat-card nm" onclick="changeDifficulty('nightmare')">
+                        <div class="cat-icon">💀</div>
+                        <div class="cat-name">Nightmare</div>
+                    </div>
+                    <div class="cat-card impossible" onclick="changeDifficulty('impossible')">
+                        <div class="cat-icon">☢️</div>
+                        <div class="cat-name">Impossible</div>
+                    </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Вкладка: Дриллы -->
+                <div id="tab-drills" class="catalog-tab-content" style="display:none;">
+                    <div class="catalog-section">
+                        <h4 class="cat-title" style="color:var(--drill-color); border-color:#333;">🧩 Дриллы (Фазы)</h4>
+                        
+                        <!-- Переключатель дисциплины -->
+                        <div class="grid grid-cols-4 gap-2 mb-6 p-1 bg-gray-800 rounded-lg">
+                            <button onclick="setDrillMode('kosmatika')" id="drill-mode-kosmatika" class="drill-mode-btn active-mode py-2 text-xs font-bold uppercase rounded transition-all bg-yellow-600 text-white">
+                                Косматика
+                            </button>
+                            <button onclick="setDrillMode('auto')" id="drill-mode-auto" class="drill-mode-btn py-2 text-xs font-bold uppercase rounded transition-all text-gray-400 hover:bg-gray-700">
+                                Автомат
+                            </button>
+                            <button onclick="setDrillMode('winchester')" id="drill-mode-winchester" class="drill-mode-btn py-2 text-xs font-bold uppercase rounded transition-all text-gray-400 hover:bg-gray-700">
+                                Винчестер
+                            </button>
+                            <button onclick="setDrillMode('bazooka')" id="drill-mode-bazooka" class="drill-mode-btn py-2 text-xs font-bold uppercase rounded transition-all text-gray-400 hover:bg-gray-700">
+                                 Базука
+                            </button>
+                        </div>
+                        
+                        <!-- Выбор уровня сложности для дриллов -->
+                        <div class="drill-diff-selector">
+                            <button class="dd-btn" onclick="setDrillDifficulty('newbie')" data-diff="newbie">👶 Newbie</button>
+                            <button class="dd-btn active" onclick="setDrillDifficulty('easy')" data-diff="easy">📚 Easy</button>
+                            <button class="dd-btn" onclick="setDrillDifficulty('hard')" data-diff="hard">🔥 Hard</button>
+                            <button class="dd-btn" onclick="setDrillDifficulty('nightmare')" data-diff="nightmare">💀 NM</button>
+                            <button class="dd-btn" onclick="setDrillDifficulty('impossible')" data-diff="impossible">☢️ Imp</button>
+                        </div>
+                        
+                        <!-- Переключатель режима конструктора -->
+                        <div class="drill-mode-switch" onclick="toggleDrillConstructor()">
+                            <div class="dms-checkbox" id="dms-check"></div>
+                            <span>🛠 Режим Конструктора (Комбо)</span>
+                        </div>
+                        
+                        <!-- Блок: Ручная настройка (Custom Setup) -->
+                        <div class="drill-custom-setup" style="background:#252525; border:1px solid #444; border-radius:8px; padding:15px; margin-top:15px; margin-bottom:20px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                                <div style="color:#999; font-size:0.95em; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">
+                                    ⚙️ Ручная настройка (Custom Setup)
+                                </div>
+                                <a id="btn-clear-custom-setup" href="javascript:void(0)" style="color:#ff9800; font-size:0.85em; text-decoration:underline; cursor:pointer;">
+                                    🗑️ Очистить
+                                </a>
+                            </div>
+                            
+                            <!-- Цифры динамики -->
+                            <div style="margin-bottom:12px;">
+                                <label for="drill-custom-numbers" style="display:block; color:#ccc; font-size:0.9em; margin-bottom:5px;">
+                                    🎲 Цифры динамики (слитно, где 0 = 10)
+                                </label>
+                                <input 
+                                    type="text" 
+                                    id="drill-custom-numbers" 
+                                    placeholder="Например: 523 или 120"
+                                    style="width:100%; padding:8px; background:#1a1a1a; border:1px solid #555; border-radius:4px; color:#fff; font-size:0.95em;"
+                                />
+                                <div id="preview-numbers" class="input-preview" style="color:#4caf50; font-size:0.8em; min-height:1.2em; margin-top:3px;"></div>
+                            </div>
+                            
+                            <!-- Черная команда -->
+                            <div style="margin-bottom:12px;">
+                                <label for="drill-custom-blacks" style="display:block; color:#ccc; font-size:0.9em; margin-bottom:5px;">
+                                    🖤 Номера черной команды (слитно, где 0 = 10)
+                                </label>
+                                <input 
+                                    type="text" 
+                                    id="drill-custom-blacks" 
+                                    placeholder="Например: 123 или 890"
+                                    style="width:100%; padding:8px; background:#1a1a1a; border:1px solid #555; border-radius:4px; color:#fff; font-size:0.95em;"
+                                />
+                                <div id="preview-blacks" class="input-preview" style="color:#4caf50; font-size:0.8em; min-height:1.2em; margin-top:3px;"></div>
+                            </div>
+                            
+                            <!-- Ролевые карты -->
+                            <div style="margin-bottom:8px;">
+                                <label style="display:block; color:#ccc; font-size:0.9em; margin-bottom:5px;">
+                                    🎭 Ролевые карты
+                                </label>
+                                <div style="display:flex; gap:10px;">
+                                    <div style="flex:1;">
+                                        <input 
+                                            type="text" 
+                                            id="drill-custom-don" 
+                                            placeholder="Дон (№)"
+                                            style="width:100%; padding:8px; background:#1a1a1a; border:1px solid #555; border-radius:4px; color:#fff; font-size:0.95em;"
+                                        />
+                                        <div id="preview-don" class="input-preview" style="color:#4caf50; font-size:0.8em; min-height:1.2em; margin-top:3px;"></div>
+                                    </div>
+                                    <div style="flex:1;">
+                                        <input 
+                                            type="text" 
+                                            id="drill-custom-sheriff" 
+                                            placeholder="Шериф (№)"
+                                            style="width:100%; padding:8px; background:#1a1a1a; border:1px solid #555; border-radius:4px; color:#fff; font-size:0.95em;"
+                                        />
+                                        <div id="preview-sheriff" class="input-preview" style="color:#4caf50; font-size:0.8em; min-height:1.2em; margin-top:3px;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div style="color:#888; font-size:0.85em; margin-top:8px;">
+                                💡 Подсказка: вводите цифры слитно, "0" = 10. Дон должен быть среди черных, Шериф — среди красных.<br>
+                                Пример: "120" → [1, 2, 10], "890" → [8, 9, 10]
+                            </div>
+                        </div>
+                        
+                        <!-- ГРУППА 1: Стрельба -->
+                        <div style="color:#999; font-size:0.95em; font-weight:600; margin-top:15px; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">
+                            Стрельба:
+                        </div>
+                        <div class="cat-grid">
+                            <div class="cat-card" onclick="selectDrill('active-digit-1', event)">
+                                <div class="cat-icon">1️⃣</div>
+                                <div class="cat-name">Активна 1-я цифра</div>
+                            </div>
+                            <div class="cat-card" onclick="selectDrill('active-digit-2', event)">
+                                <div class="cat-icon">2️⃣</div>
+                                <div class="cat-name">Активна 2-я цифра</div>
+                            </div>
+                            <div class="cat-card" onclick="selectDrill('active-digit-3', event)">
+                                <div class="cat-icon">3️⃣</div>
+                                <div class="cat-name">Активна 3-я цифра</div>
+                            </div>
+                            
+                        </div>
+                        
+                        <!-- ГРУППА 2: Промах -->
+                        <div style="color:#999; font-size:0.95em; font-weight:600; margin-top:25px; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">
+                            Промах:
+                        </div>
+                        <div class="cat-grid">
+                            <div class="cat-card" onclick="selectDrill('miss-night-1', event)">
+                                <div class="cat-icon">❌</div>
+                                <div class="cat-name">Промах в 1-ю ночь</div>
+                            </div>
+                            <div class="cat-card" onclick="selectDrill('miss-night-2', event)">
+                                <div class="cat-icon">❌</div>
+                                <div class="cat-name">Промах во 2-ю ночь</div>
+                            </div>
+                            <div class="cat-card" onclick="selectDrill('miss-night-3', event)">
+                                <div class="cat-icon">❌</div>
+                                <div class="cat-name">Промах в 3-ю ночь</div>
+                            </div>
+                            <div class="cat-card" onclick="selectDrill('miss-night-4', event)">
+                                <div class="cat-icon">❌</div>
+                                <div class="cat-name">Промах в 4-ю ночь</div>
+                            </div>
+                            <div class="cat-card" onclick="selectDrill('miss-night-5', event)">
+                                <div class="cat-icon">❌</div>
+                                <div class="cat-name">Промах в 5-ю ночь</div>
+                            </div>
+                        </div>
+                        
+                        <!-- ГРУППА 3: Шериф -->
+                        <div style="color:#999; font-size:0.95em; font-weight:600; margin-top:25px; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">
+                            Шериф:
+                        </div>
+                        <div class="cat-grid">
+                            <div class="cat-card" onclick="selectDrill('sheriff-alive', event)">
+                                <div class="cat-icon">🟢</div>
+                                <div class="cat-name">Шериф жив</div>
+                            </div>
+                            <div class="cat-card" onclick="selectDrill('killed-sheriff', event)">
+                                <div class="cat-icon">💀</div>
+                                <div class="cat-name">Убит Шериф</div>
+                            </div>
+                            <div class="cat-card" onclick="selectDrill('2-versions', event)">
+                                <div class="cat-icon">⚔️</div>
+                                <div class="cat-name">2 версии</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Подзаголовок: Действия Дона -->
+                        <div style="color:#999; font-size:0.95em; font-weight:600; margin-top:25px; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">
+                            Действия Дона
+                        </div>
+                        <div class="cat-grid">
+                            <div class="cat-card" onclick="selectDrill('only-none', event)">
+                                <div class="cat-icon">🤫</div>
+                                <div class="cat-name">🤫 Ничего не показывал (Пас)</div>
+                            </div>
+                            <div class="cat-card" onclick="selectDrill('only-digit', event)">
+                                <div class="cat-icon">👆</div>
+                                <div class="cat-name">👆 Только Цифра</div>
+                            </div>
+                            <div class="cat-card" onclick="selectDrill('only-badge', event)">
+                                <div class="cat-icon">👌</div>
+                                <div class="cat-name">👌 Только Жетон</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Кнопка запуска конструктора -->
+                        <button id="btn-run-drill" class="next-btn-big" style="display:none; margin-top:20px; background:var(--drill-color);" onclick="runConstructorDrill()">
+                            ▶️ ЗАПУСТИТЬ ДРИЛЛ
+                        </button>
+                    </div>
+                </div>
+
+<!-- Вкладка: Все динамики -->
+                <div id="tab-spec" class="catalog-tab-content" style="display:none;">
+                    <div class="catalog-section">
+                        <h4 class="cat-title who-title">❓ Кто (ClassicFire)</h4>
+                <div class="cat-grid">
+                    <div class="cat-card who" onclick="selectMode('who_newbie', '❓ Кто (Newbie)')">
+                        <div class="cat-icon">👶</div>
+                        <div class="cat-name">Newbie</div>
+                    </div>
+                    <div class="cat-card who" onclick="selectMode('who_easy', '❓ Кто (Easy Mode)')">
+                        <div class="cat-icon">📚</div>
+                        <div class="cat-name">Easy Mode</div>
+                    </div>
+                    <div class="cat-card who" onclick="selectMode('who_hard', '❓ Кто (Hard)')">
+                        <div class="cat-icon">🔥</div>
+                        <div class="cat-name">Hard</div>
+                    </div>
+                    <div class="cat-card who nm" onclick="selectMode('who_nightmare', '❓ Кто (Nightmare)')">
+                        <div class="cat-icon">💀</div>
+                        <div class="cat-name">Nightmare</div>
+                    </div>
+                    <div class="cat-card who impossible" onclick="selectMode('who_impossible', '❓ Кто (Impossible)')">
+                        <div class="cat-icon">☢️</div>
+                        <div class="cat-name">Impossible</div>
+                    </div>
+                        </div>
+                    </div>
+                    <div class="catalog-section">
+                        <h4 class="cat-title mantis-title">👐 Богомол (ClassicFire)</h4>
+                <div class="cat-grid">
+                    <div class="cat-card mantis" onclick="selectMode('mantis_newbie', '👐 Богомол (Newbie)')">
+                        <div class="cat-icon">👶</div>
+                        <div class="cat-name">Newbie</div>
+                    </div>
+                    <div class="cat-card mantis" onclick="selectMode('mantis_easy', '👐 Богомол (Easy Mode)')">
+                        <div class="cat-icon">📚</div>
+                        <div class="cat-name">Easy Mode</div>
+                    </div>
+                    <div class="cat-card mantis" onclick="selectMode('mantis_hard', '👐 Богомол (Hard)')">
+                        <div class="cat-icon">🔥</div>
+                        <div class="cat-name">Hard</div>
+                    </div>
+                    <div class="cat-card mantis nm" onclick="selectMode('mantis_nightmare', '👐 Богомол (Nightmare)')">
+                        <div class="cat-icon">💀</div>
+                        <div class="cat-name">Nightmare</div>
+                    </div>
+                    <div class="cat-card mantis impossible" onclick="selectMode('mantis_impossible', '👐 Богомол (Impossible)')">
+                        <div class="cat-icon">☢️</div>
+                        <div class="cat-name">Impossible</div>
+                    </div>
+                        </div>
+                    </div>
+                    <div class="catalog-section">
+                        <h4 class="cat-title check-title">🔎 Проверка (ClassicFire)</h4>
+                <div class="cat-grid">
+                    <div class="cat-card check" onclick="selectMode('check_newbie', '🔎 Проверка (Newbie)')">
+                        <div class="cat-icon">👶</div>
+                        <div class="cat-name">Newbie</div>
+                    </div>
+                    <div class="cat-card check" onclick="selectMode('check_easy', '🔎 Проверка (Easy Mode)')">
+                        <div class="cat-icon">🙂</div>
+                        <div class="cat-name">Easy Mode</div>
+                    </div>
+                    <div class="cat-card check" onclick="selectMode('check_hard', '🔎 Проверка (Hard Mode)')">
+                        <div class="cat-icon">😐</div>
+                        <div class="cat-name">Hard Mode</div>
+                    </div>
+                    <div class="cat-card check nm" onclick="selectMode('check_nightmare', '🔎 Проверка (Nightmare)')">
+                        <div class="cat-icon">😱</div>
+                        <div class="cat-name">Nightmare</div>
+                    </div>
+                    <div class="cat-card check impossible" onclick="selectMode('check_impossible', '🔎 Проверка (Impossible)')">
+                        <div class="cat-icon">💀</div>
+                        <div class="cat-name">Impossible</div>
+                    </div>
+                        </div>
+                    </div>
+                    <div class="catalog-section">
+                        <h4 class="cat-title red-title">👍 Красный (ClassicFire)</h4>
+                <div class="cat-grid">
+                    <div class="cat-card red" onclick="selectMode('red_newbie', '👍 Красный (Newbie)')">
+                        <div class="cat-icon">👶</div>
+                        <div class="cat-name">Newbie</div>
+                    </div>
+                    <div class="cat-card red" onclick="selectMode('red_easy', '👍 Красный (Easy Mode)')">
+                        <div class="cat-icon">📚</div>
+                        <div class="cat-name">Easy Mode</div>
+                    </div>
+                    <div class="cat-card red" onclick="selectMode('red_hard', '👍 Красный (Hard)')">
+                        <div class="cat-icon">🔥</div>
+                        <div class="cat-name">Hard</div>
+                    </div>
+                    <div class="cat-card red nm" onclick="selectMode('red_nightmare', '👍 Красный (Nightmare)')">
+                        <div class="cat-icon">💀</div>
+                        <div class="cat-name">Nightmare</div>
+                    </div>
+                    <div class="cat-card red impossible" onclick="selectMode('red_impossible', '👍 Красный (Impossible)')">
+                        <div class="cat-icon">☢️</div>
+                        <div class="cat-name">Impossible</div>
+                    </div>
+                        </div>
+                    </div>
+                    <div class="catalog-section">
+                        <h4 class="cat-title black-title">👎 Чёрный (ClassicFire)</h4>
+                <div class="cat-grid">
+                    <div class="cat-card black" onclick="selectMode('black_newbie', '👎 Чёрный (Newbie)')">
+                        <div class="cat-icon">👶</div>
+                        <div class="cat-name">Newbie</div>
+                    </div>
+                    <div class="cat-card black" onclick="selectMode('black_easy', '👎 Чёрный (Easy Mode)')">
+                        <div class="cat-icon">📚</div>
+                        <div class="cat-name">Easy Mode</div>
+                    </div>
+                    <div class="cat-card black" onclick="selectMode('black_hard', '👎 Чёрный (Hard)')">
+                        <div class="cat-icon">🔥</div>
+                        <div class="cat-name">Hard</div>
+                    </div>
+                    <div class="cat-card black nm" onclick="selectMode('black_nightmare', '👎 Чёрный (Nightmare)')">
+                        <div class="cat-icon">💀</div>
+                        <div class="cat-name">Nightmare</div>
+                    </div>
+                    <div class="cat-card black impossible" onclick="selectMode('black_impossible', '👎 Чёрный (Impossible)')">
+                        <div class="cat-icon">☢️</div>
+                        <div class="cat-name">Impossible</div>
+                    </div>
+                        </div>
+                    </div>
+                    <div class="catalog-section">
+                        <h4 class="cat-title redblack-title">👍👎 Красный/Чёрный (ClassicFire)</h4>
+                <div class="cat-grid">
+                    <div class="cat-card redblack" onclick="selectMode('redblack_newbie', '👍👎 Красный/Чёрный (Newbie)')">
+                        <div class="cat-icon">👶</div>
+                        <div class="cat-name">Newbie</div>
+                    </div>
+                    <div class="cat-card redblack" onclick="selectMode('redblack_easy', '👍👎 Красный/Чёрный (Easy Mode)')">
+                        <div class="cat-icon">📚</div>
+                        <div class="cat-name">Easy Mode</div>
+                    </div>
+                    <div class="cat-card redblack" onclick="selectMode('redblack_hard', '👍👎 Красный/Чёрный (Hard)')">
+                        <div class="cat-icon">🔥</div>
+                        <div class="cat-name">Hard</div>
+                    </div>
+                    <div class="cat-card redblack nm" onclick="selectMode('redblack_nightmare', '👍👎 Красный/Чёрный (Nightmare)')">
+                        <div class="cat-icon">💀</div>
+                        <div class="cat-name">Nightmare</div>
+                    </div>
+                    <div class="cat-card redblack impossible" onclick="selectMode('redblack_impossible', '👍👎 Красный/Чёрный (Impossible)')">
+                        <div class="cat-icon">☢️</div>
+                        <div class="cat-name">Impossible</div>
+                    </div>
+                        </div>
+                    </div>
+                    <!-- Секция: Автомат -->
+                    <div class="catalog-section">
+                        <h4 class="cat-title" style="color:var(--automatch-color)">👉👉 Автомат (Practice)</h4>
+                <div class="cat-grid">
+                    <div class="cat-card auto" onclick="selectMode('automatch_newbie', '👉👉 Автомат (Newbie)')">
+                        <div class="cat-icon">👶</div>
+                        <div class="cat-name">Newbie</div>
+                    </div>
+                    <div class="cat-card auto" onclick="selectMode('automatch_easy', '👉👉 Автомат (Easy Mode)')">
+                        <div class="cat-icon">📚</div>
+                        <div class="cat-name">Easy</div>
+                    </div>
+                    <div class="cat-card auto" onclick="selectMode('automatch_hard', '👉👉 Автомат (Hard)')">
+                        <div class="cat-icon">🔥</div>
+                        <div class="cat-name">Hard</div>
+                    </div>
+                    <div class="cat-card auto nm" onclick="selectMode('automatch_nightmare', '👉👉 Автомат (Nightmare)')">
+                        <div class="cat-icon">💀</div>
+                        <div class="cat-name">Nightmare</div>
+                    </div>
+                    <div class="cat-card auto impossible" onclick="selectMode('automatch_impossible', '👉👉 Автомат (Impossible)')">
+                        <div class="cat-icon">☢️</div>
+                        <div class="cat-name">Impossible</div>
+                    </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Секция: Винчестер -->
+                    <div class="catalog-section">
+                        <h4 class="cat-title winchester-title">👉✊ ВИНЧЕСТЕР</h4>
+                <div class="cat-grid">
+                    <div class="cat-card winchester" onclick="selectMode('winchester_newbie', '👉✊ Винчестер (Newbie)')">
+                        <div class="cat-icon">👶</div>
+                        <div class="cat-name">Newbie</div>
+                    </div>
+                    <div class="cat-card winchester" onclick="selectMode('winchester_easy', '👉✊ Винчестер (Easy)')">
+                        <div class="cat-icon">📚</div>
+                        <div class="cat-name">Easy</div>
+                    </div>
+                    <div class="cat-card winchester" onclick="selectMode('winchester_hard', '👉✊ Винчестер (Hard)')">
+                        <div class="cat-icon">🔥</div>
+                        <div class="cat-name">Hard</div>
+                    </div>
+                    <div class="cat-card winchester nm" onclick="selectMode('winchester_nightmare', '👉✊ Винчестер (Nightmare)')">
+                        <div class="cat-icon">💀</div>
+                        <div class="cat-name">Nightmare</div>
+                    </div>
+                    <div class="cat-card winchester impossible" onclick="selectMode('winchester_impossible', '👉✊ Винчестер (Impossible)')">
+                        <div class="cat-icon">☢️</div>
+                        <div class="cat-name">Impossible</div>
+                    </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Секция: Ахалай -->
+                    <div class="catalog-section">
+                        <h4 class="cat-title ahalay-title">👋👋 Ахалай-махалай (PRACTICE)</h4>
+                <div class="cat-grid">
+                    <div class="cat-card ahalay" onclick="selectMode('ahalay_newbie', '👋👋 Ахалай (Newbie)')">
+                        <div class="cat-icon">👶</div>
+                        <div class="cat-name">Newbie</div>
+                    </div>
+                    <div class="cat-card ahalay" onclick="selectMode('ahalay_easy', '👋👋 Ахалай (Easy Mode)')">
+                        <div class="cat-icon">📚</div>
+                        <div class="cat-name">Easy Mode</div>
+                    </div>
+                    <div class="cat-card ahalay" onclick="selectMode('ahalay_hard', '👋👋 Ахалай (Hard)')">
+                        <div class="cat-icon">🔥</div>
+                        <div class="cat-name">Hard</div>
+                    </div>
+                    <div class="cat-card ahalay nm" onclick="selectMode('ahalay_nightmare', '👋👋 Ахалай (Nightmare)')">
+                        <div class="cat-icon">💀</div>
+                        <div class="cat-name">Nightmare</div>
+                    </div>
+                    <div class="cat-card ahalay impossible" onclick="selectMode('ahalay_impossible', '👋👋 Ахалай (Impossible)')">
+                        <div class="cat-icon">☢️</div>
+                        <div class="cat-name">Impossible</div>
+                    </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Секция: Росомаха -->
+                    <div class="catalog-section">
+                        <h4 class="cat-title" style="color:var(--wolverine-color); border-color:#333;">🐾 Росомаха (Спецрежим)</h4>
+                <div class="cat-grid">
+                    <div class="cat-card wolverine-card" onclick="selectMode('wolverine_easy', '🐾 Росомаха (Easy)')">
+                        <div class="cat-icon">🐾</div>
+                        <div class="cat-name">Easy</div>
+                    </div>
+                    <div class="cat-card wolverine-card" onclick="selectMode('wolverine_hard', '🐾 Росомаха (Hard)')">
+                        <div class="cat-icon">🔥</div>
+                        <div class="cat-name">Hard</div>
+                    </div>
+                </div>
+                        <p style="color:#777; font-size:0.85em; margin-top:5px; margin-bottom: 20px;">
+                            Дон гарантированно умирает. Включается "Протокол Росомаха".
+                        </p>
+                    </div>
+
+                    <!-- Секция: Базука -->
+                    <div class="catalog-section">
+                        <h4 class="cat-title" style="color:var(--bazooka-color); border-color:#333;">🚀 Базука (Practice)</h4>
+                <div class="cat-grid">
+                    <div class="cat-card bazooka" onclick="selectMode('bazooka_newbie', '🚀 Базука (Newbie)')">
+                        <div class="cat-icon">👶</div>
+                        <div class="cat-name">Newbie</div>
+                    </div>
+                    <div class="cat-card bazooka" onclick="selectMode('bazooka_easy', '🚀 Базука (Easy Mode)')">
+                        <div class="cat-icon">📚</div>
+                        <div class="cat-name">Easy Mode</div>
+                    </div>
+                    <div class="cat-card bazooka" onclick="selectMode('bazooka_hard', '🚀 Базука (Hard)')">
+                        <div class="cat-icon">🔥</div>
+                        <div class="cat-name">Hard</div>
+                    </div>
+                    <div class="cat-card bazooka nm" onclick="selectMode('bazooka_nightmare', '🚀 Базука (Nightmare)')">
+                        <div class="cat-icon">💀</div>
+                        <div class="cat-name">Nightmare</div>
+                    </div>
+                    <div class="cat-card bazooka impossible" onclick="selectMode('bazooka_impossible', '🚀 Базука (Impossible)')">
+                        <div class="cat-icon">☢️</div>
+                        <div class="cat-name">Impossible</div>
+                    </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Вкладка: Новинки -->
+                <div id="tab-new" class="catalog-tab-content" style="display:none;">
+                    <div class="catalog-section">
+                        <h4 class="cat-title" style="color:#777;">🔒 В разработке</h4>
+                        <div class="cat-grid">
+
+                            <div class="cat-card" style="opacity:0.4; cursor:default; border-color:#444;">
+                                <div class="cat-icon">👮</div>
+                                <div class="cat-name">Инта</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Вкладка: Калькуляторы -->
+                <!-- Вкладка: Счёт игры (Math Mode) -->
+                <div id="tab-math" class="catalog-tab-content" style="display:none;">
+                    <div class="catalog-section">
+                        <h4 class="cat-title" style="color:var(--math-color); border-color:var(--math-color);">🧮 Счёт игры - Математика Победы</h4>
+                        
+                        <div style="text-align: center; margin-bottom: 30px;">
+                            <p style="color: #aaa; font-size: 0.95em; line-height: 1.6;">
+                                Тренируйте навык быстрого определения игровой ситуации.<br>
+                                Анализируйте соотношение Красных и Чёрных, определяйте критические моменты.
+                            </p>
+                        </div>
+                        
+                        <div class="cat-card" onclick="selectMode('math_mode', '🧮 Счёт игры')" style="max-width: 300px; margin: 0 auto; cursor: pointer;">
+                            <div class="cat-icon" style="font-size: 3em;">🧮</div>
+                            <div class="cat-name" style="font-size: 1.2em;">Начать тренировку</div>
+                            <div style="color: #999; font-size: 0.85em; margin-top: 8px;">
+                                Определи: ПНО, Критика или ГГ?
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-calc" class="catalog-tab-content" style="display:none;">
+                    <div class="catalog-section">
+                        <h4 class="cat-title" style="color:gold">🧮 Калькуляторы стрельбы</h4>
+                        <div class="cat-grid">
+                            <div class="cat-card tool" onclick="selectMode('calc', '👉 Калькулятор (Косматика)')">
+                                <div class="cat-icon">👉</div>
+                                <div class="cat-name">Косматика</div>
+                            </div>
+                            <div class="cat-card tool" onclick="selectMode('automatch_calc', '👉👉 Калькулятор (Автомат)')">
+                                <div class="cat-icon">👉👉</div>
+                                <div class="cat-name">Автомат</div>
+                            </div>
+                            <div class="cat-card tool ahalay" onclick="selectMode('ahalay_calc', '👋👋 Калькулятор для Ахалая')">
+                                <div class="cat-icon">👋👋</div>
+                                <div class="cat-name">Ахалай</div>
+                            </div>
+                            <div class="cat-card tool winchester" onclick="selectMode('winchester_calc', '👉✊ Калькулятор для Винчестера')">
+                                <div class="cat-icon">👉✊</div>
+                                <div class="cat-name">Винчестер</div>
+                            </div>
+                            <div class="cat-card tool" onclick="selectMode('bazooka_calc', '🚀 Калькулятор для Базуки')">
+                                <div class="cat-icon">🚀</div>
+                                <div class="cat-name">Базука</div>
+                            </div>
+                            <div class="cat-card tool who" style="border-color: #9c27b0;" onclick="selectMode('who_calc', '❓ Калькулятор (Кто)')">
+                                <div class="cat-icon">❓</div>
+                                <div class="cat-name">Кто</div>
+                            </div>
+                            <div class="cat-card tool mantis" style="border-color: #76ff03;" onclick="selectMode('mantis_calc', '👐 Калькулятор (Богомол)')">
+                                <div class="cat-icon">👐</div>
+                                <div class="cat-name">Богомол</div>
+                            </div>
+                            <div class="cat-card tool check" style="border-color: #18ffff;" onclick="selectMode('check_calc', '🔎 Калькулятор (Проверка)')">
+                                <div class="cat-icon">🔎</div>
+                                <div class="cat-name">Проверка</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+<script src="app.js"></script>
+</body>
+</html>

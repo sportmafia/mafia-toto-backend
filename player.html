@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SportMafia — Player</title>
+  <style>
+    :root {
+      --bg: #121212;
+      --card: #1e1e1e;
+      --text: #e0e0e0;
+      --muted: #9e9e9e;
+      --accent: #d32f2f;
+      --line: #333;
+    }
+    body {
+      margin: 0;
+      padding: 16px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    .card {
+      max-width: 680px;
+      margin: 0 auto;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    h1 { margin: 0 0 8px; color: var(--accent); }
+    .muted { color: var(--muted); font-size: 0.92rem; }
+    .row { display: flex; gap: 8px; margin-top: 10px; }
+    input {
+      flex: 1;
+      background: #2b2b2b;
+      border: 1px solid #444;
+      color: #fff;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 15px;
+    }
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    #status { margin-top: 10px; font-weight: 700; }
+    .panel {
+      margin-top: 14px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      background: #191919;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .big {
+      font-size: 1.4rem;
+      font-weight: 800;
+    }
+    .danger { color: #ff6b6b; }
+    .ok { color: #6bff8f; }
+    .players-list { display: grid; gap: 8px; }
+    .player-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto auto auto;
+      gap: 8px;
+      align-items: center;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #161616;
+    }
+    .player-row button {
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+    .player-row button[disabled] {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .vote-banner {
+      margin-top: 14px;
+      border: 1px solid #6d3b3b;
+      border-radius: 10px;
+      padding: 12px;
+      background: #2a1717;
+      display: none;
+    }
+    .vote-actions { display: flex; gap: 8px; margin-top: 8px; }
+    .btn-no { background: #444; }
+    .skip-speech-btn {
+      width: 100%;
+      margin-top: 12px;
+      padding: 14px;
+      font-size: 1.05rem;
+      font-weight: 800;
+    }
+    /* --- Модалка авто-ночи / авто-голосования --- */
+    .auto-modal-overlay {
+      display: none; position: fixed; z-index: 1000;
+      inset: 0; background: rgba(0,0,0,.85);
+      align-items: center; justify-content: center;
+    }
+    .auto-modal-overlay.visible { display: flex; }
+    .auto-modal {
+      background: #1e1e1e; border: 1px solid #444;
+      border-radius: 14px; padding: 20px; width: 92%; max-width: 400px;
+      text-align: center;
+    }
+    .auto-modal h2 { margin: 0 0 10px; font-size: 1.2rem; }
+    .auto-modal .desc { color: var(--muted); font-size: 0.88rem; margin-bottom: 14px; }
+    .seat-grid {
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      gap: 8px; margin-bottom: 14px;
+    }
+    .seat-btn {
+      width: 100%; aspect-ratio: 1; border-radius: 10px;
+      background: #2b2b2b; border: 2px solid #444;
+      color: #fff; font-size: 1.3rem; font-weight: 800;
+      cursor: pointer; transition: .15s;
+    }
+    .seat-btn:hover { border-color: var(--accent); }
+    .seat-btn.selected { background: var(--accent); border-color: #ff6b6b; }
+    .seat-btn:disabled { opacity: .3; cursor: not-allowed; }
+    .auto-modal .confirm-btn {
+      width: 100%; padding: 12px; border: none;
+      border-radius: 10px; font-size: 1rem; font-weight: 700;
+      cursor: pointer; margin-top: 6px;
+    }
+    .confirm-btn.red { background: var(--accent); color: #fff; }
+    .confirm-btn.gray { background: #333; color: #aaa; margin-top: 8px; }
+    .auto-modal .waiting { color: #f1c40f; font-weight: 700; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="muted" style="margin-bottom:8px;"><a href="index.html" style="color:inherit;">← На главную</a></div>
+    <h1>🎮 Игрок</h1>
+    <div class="muted">Подключение к комнате судьи и персональный статус.</div>
+
+    <div class="row">
+      <input id="room-id" placeholder="ROOM ID" maxlength="10" />
+      <input id="token" placeholder="PLAYER TOKEN (UUID)" />
+      <button id="join-btn">Войти</button>
+    </div>
+
+    <div id="status">🔴 Не подключено</div>
+
+    <div class="panel">
+      <div class="grid">
+        <div>Комната:</div><div id="out-room">—</div>
+        <div>Фаза:</div><div id="out-phase">—</div>
+        <div>День:</div><div id="out-day">—</div>
+        <div>Живых:</div><div id="out-alive">—</div>
+      </div>
+      <div style="margin-top:10px;">Таймер: <span id="out-timer" class="big">--:--</span></div>
+      <div style="margin-top:10px;">Событие: <span id="out-event">—</span></div>
+    </div>
+
+    <div class="panel">
+      <div style="font-weight:700; margin-bottom:8px;">🔒 Твой приватный статус</div>
+      <div class="grid">
+        <div>Место:</div><div id="p-seat">—</div>
+        <div>Роль:</div><div id="p-role">—</div>
+        <div>Статус:</div><div id="p-status">—</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div style="font-weight:700; margin-bottom:8px;">⚖️ Фолы игроков (1–10)</div>
+      <div id="players-list" class="players-list"></div>
+      <button id="skip-speech-btn" class="skip-speech-btn">⏭️ Пропустить речь</button>
+    </div>
+
+    <div id="vote-banner" class="vote-banner">
+      <div id="vote-text">Игрок выставлен на фол. Голосуете?</div>
+      <div class="vote-actions">
+        <button id="vote-yes">Да</button>
+        <button id="vote-no" class="btn-no">Нет</button>
+      </div>
+    </div>
+
+    <div id="error" class="muted" style="margin-top:10px;"></div>
+  </div>
+
+  <!-- Модалка: Ночное действие (авто-ночь) -->
+  <div class="auto-modal-overlay" id="night-action-modal">
+    <div class="auto-modal">
+      <h2 id="night-modal-title">🌙 Ночное действие</h2>
+      <div class="desc" id="night-modal-desc">Выберите номер игрока</div>
+      <div class="seat-grid" id="night-seat-grid"></div>
+      <button class="confirm-btn red" id="night-confirm-btn" disabled>Подтвердить</button>
+      <div class="waiting" id="night-waiting" style="display:none;">⏳ Ожидание других игроков...</div>
+    </div>
+  </div>
+
+  <!-- Модалка: Дневное голосование (авто-голосование) -->
+  <div class="auto-modal-overlay" id="vote-action-modal">
+    <div class="auto-modal">
+      <h2>🗳 Голосование</h2>
+      <div class="desc">Выберите кого казнить (или пропуск)</div>
+      <div class="seat-grid" id="vote-seat-grid"></div>
+      <button class="confirm-btn red" id="vote-confirm-btn" disabled>Голосовать</button>
+      <button class="confirm-btn gray" id="vote-skip-btn">Воздержаться</button>
+      <div class="waiting" id="vote-waiting" style="display:none;">⏳ Ожидание голосов...</div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="sync.js"></script>
+  <script>
+    function byId(id) { return document.getElementById(id); }
+    function setText(id, value) { var el = byId(id); if (el) el.textContent = value; }
+
+    var currentSeat = null;
+    var currentTokenHash = null;
+    var foulVotesUnsub = null;
+    var tableEventsUnsub = null;
+    var nominationsUnsub = null;
+    var foulsBySeat = {};
+    var nominations = {};
+    var hasNominated = false;
+    var activeFoulVotes = [];
+    var currentVoteId = null;
+
+    // === Авто-судья: состояние ===
+    var roomSettings = {};
+    var settingsUnsub = null;
+    var currentPhase = '';
+    var currentRole = '';
+    var nightActionSent = false;
+    var voteActionSent = false;
+    var nightSelectedTarget = null;
+    var voteSelectedTarget = null;
+
+    function fmt(sec) {
+      if (!Number.isFinite(sec)) return '--:--';
+      var s = Math.max(0, Math.floor(sec));
+      var m = Math.floor(s / 60);
+      var r = s % 60;
+      return String(m).padStart(2, '0') + ':' + String(r).padStart(2, '0');
+    }
+
+    function showError(msg) {
+      setText('error', msg || '');
+    }
+
+    function getFoulCounters(seat) {
+      var raw = foulsBySeat[String(seat)];
+      if (typeof raw === 'number') {
+        return { regular: Number(raw || 0), technical: 0 };
+      }
+      if (!raw || typeof raw !== 'object') {
+        return { regular: 0, technical: 0 };
+      }
+      return {
+        regular: Number(raw.regular || 0),
+        technical: Number(raw.technical || 0)
+      };
+    }
+
+    function foulTypeLabel(type) {
+      return type === 'technical' ? 'ТЕХНИЧЕСКИЙ' : 'ОБЫЧНЫЙ';
+    }
+
+    function renderPlayersList() {
+      var root = byId('players-list');
+      if (!root) return;
+
+      var html = '';
+      for (var seat = 1; seat <= 10; seat += 1) {
+        var self = Number(currentSeat) === seat;
+        var counters = getFoulCounters(seat);
+        html += '' +
+          '<div class="player-row">' +
+            '<div>Игрок ' + seat + '</div>' +
+            '<div>Фолы: <b>' + counters.regular + '</b> (Тех: <b>' + counters.technical + '</b>)</div>' +
+            '<button data-action="foul-regular" data-seat="' + seat + '" ' + (self ? 'disabled' : '') + '>Обычный фол</button>' +
+            '<button data-action="foul-technical" data-seat="' + seat + '" ' + (self ? 'disabled' : '') + '>Тех. фол</button>' +
+            '<button data-action="nominate" data-seat="' + seat + '" ' + (self || hasNominated ? 'disabled' : '') + '>Выставить</button>' +
+          '</div>';
+      }
+      root.innerHTML = html;
+
+      Array.prototype.forEach.call(root.querySelectorAll('button[data-action][data-seat]'), function (btn) {
+        btn.addEventListener('click', async function () {
+          var seat = Number(btn.getAttribute('data-seat'));
+          var action = btn.getAttribute('data-action');
+          try {
+            if (action === 'foul-regular') {
+              await window.SportMafiaSync.proposeFoulVote(seat, 'regular');
+            } else if (action === 'foul-technical') {
+              await window.SportMafiaSync.proposeFoulVote(seat, 'technical');
+            } else if (action === 'nominate') {
+              await window.SportMafiaSync.nominatePlayer(seat);
+              hasNominated = true;
+              renderPlayersList();
+            }
+          } catch (e) {
+            showError('Ошибка действия: ' + (e && e.message ? e.message : 'unknown'));
+          }
+        });
+      });
+    }
+
+    function pickPendingVote() {
+      if (!currentTokenHash) return null;
+      for (var i = 0; i < activeFoulVotes.length; i += 1) {
+        var vote = activeFoulVotes[i];
+        var votesMap = vote.votes || {};
+        if (votesMap[currentTokenHash] === undefined) return vote;
+      }
+      return null;
+    }
+
+    function renderVoteBanner() {
+      var box = byId('vote-banner');
+      var text = byId('vote-text');
+      if (!box || !text) return;
+
+      var vote = pickPendingVote();
+      if (!vote || !Number.isFinite(vote.targetSeat) || vote.targetSeat < 1) {
+        box.style.display = 'none';
+        currentVoteId = null;
+        return;
+      }
+
+      currentVoteId = vote.id;
+      text.textContent = 'Игрок ' + vote.targetSeat + ' выставлен на ' + foulTypeLabel(vote.foulType) + ' фол. Голосуете?';
+      box.style.display = 'block';
+    }
+
+    function bindFoulVotes() {
+      if (foulVotesUnsub) {
+        foulVotesUnsub();
+        foulVotesUnsub = null;
+      }
+
+      try {
+        foulVotesUnsub = window.SportMafiaSync.listenToFoulVotes(function (votes) {
+          activeFoulVotes = Array.isArray(votes) ? votes : [];
+          renderVoteBanner();
+        });
+      } catch (e) {
+        showError('Ошибка подписки на голосования: ' + (e && e.message ? e.message : 'unknown'));
+      }
+    }
+
+    function bindTableEvents() {
+      if (tableEventsUnsub) {
+        tableEventsUnsub();
+        tableEventsUnsub = null;
+      }
+
+      try {
+        tableEventsUnsub = window.SportMafiaSync.listenToTableEvents(function (event) {
+          if (event && event.type === 'SKIP_SPEECH') {
+            setText('out-timer', '00:00');
+            setText('out-event', 'SKIP_SPEECH');
+          }
+        });
+      } catch (e) {
+        showError('Ошибка подписки на события стола: ' + (e && e.message ? e.message : 'unknown'));
+      }
+    }
+
+    function bindNominations() {
+      if (nominationsUnsub) {
+        nominationsUnsub();
+        nominationsUnsub = null;
+      }
+
+      try {
+        nominationsUnsub = window.SportMafiaSync.listenToNominations(function (data) {
+          nominations = data || {};
+          hasNominated = !!(currentTokenHash && nominations[currentTokenHash] !== undefined && nominations[currentTokenHash] !== null);
+          renderPlayersList();
+        });
+      } catch (e) {
+        showError('Ошибка подписки на выставления: ' + (e && e.message ? e.message : 'unknown'));
+      }
+    }
+
+    function applyPublic(data) {
+      if (!data) return;
+      if (data.phase) {
+        setText('out-phase', data.phase);
+        var prevPhase = currentPhase;
+        currentPhase = data.phase;
+        if (prevPhase !== currentPhase) onSettingsOrPhaseChanged();
+      }
+      if (Number.isFinite(data.dayNumber)) setText('out-day', String(data.dayNumber));
+      if (Number.isFinite(data.aliveCount)) setText('out-alive', String(data.aliveCount));
+      if (data.fouls && typeof data.fouls === 'object') {
+        foulsBySeat = data.fouls;
+        renderPlayersList();
+      }
+      if (data.lastEvent) {
+        var type = data.lastEvent.type || 'EVENT';
+        setText('out-event', type);
+      }
+      if (data.timer) {
+        var left = window.SportMafiaSync.computeTimerRemaining(data.timer);
+        setText('out-timer', fmt(left));
+      }
+    }
+
+    function applyPrivate(data) {
+      if (!data) return;
+      setText('p-seat', data.seat != null ? String(data.seat) : '—');
+      setText('p-role', data.role || '—');
+      setText('p-status', data.status || '—');
+      currentSeat = Number(data.seat || 0) || null;
+      var prevRole = currentRole;
+      currentRole = data.role || '';
+      renderPlayersList();
+      var st = data.isAlive ? 'ok' : 'danger';
+      byId('p-status').className = st;
+      if (prevRole !== currentRole) onSettingsOrPhaseChanged();
+    }
+
+    async function connect() {
+      showError('');
+      try {
+        var res = await window.SportMafiaSync.initPlayer({
+          statusEl: byId('status'),
+          onPublic: applyPublic,
+          onPrivate: applyPrivate,
+          onTimerTick: function (left) {
+            setText('out-timer', fmt(left));
+          },
+          onError: function (err) {
+            showError('Нет связи: ' + (err && err.message ? err.message : 'unknown'));
+          }
+        });
+
+        if (res.needsJoin) return;
+        setText('out-room', res.roomId || '—');
+        byId('room-id').value = res.roomId || '';
+        currentTokenHash = res.tokenHash || null;
+        bindFoulVotes();
+        bindTableEvents();
+        bindNominations();
+        bindSettings();
+      } catch (e) {
+        showError('Нет связи: ' + (e && e.message ? e.message : 'unknown'));
+      }
+    }
+
+    byId('join-btn').addEventListener('click', async function () {
+      try {
+        var room = byId('room-id').value;
+        var token = byId('token').value;
+        var res = await window.SportMafiaSync.joinPlayer(room, token);
+        setText('out-room', res.roomId || room);
+        currentTokenHash = res.tokenHash || null;
+        bindFoulVotes();
+        bindTableEvents();
+        bindNominations();
+        bindSettings();
+      } catch (e) {
+        showError('Ошибка входа: ' + (e && e.message ? e.message : 'unknown'));
+      }
+    });
+
+    byId('skip-speech-btn').addEventListener('click', async function () {
+      try {
+        await window.SportMafiaSync.skipSpeech();
+      } catch (e) {
+        showError('Ошибка пропуска речи: ' + (e && e.message ? e.message : 'unknown'));
+      }
+    });
+
+    byId('vote-yes').addEventListener('click', async function () {
+      if (!currentVoteId) return;
+      try {
+        await window.SportMafiaSync.castVote(currentVoteId, true);
+      } catch (e) {
+        showError('Ошибка голосования: ' + (e && e.message ? e.message : 'unknown'));
+      }
+    });
+
+    byId('vote-no').addEventListener('click', async function () {
+      if (!currentVoteId) return;
+      try {
+        await window.SportMafiaSync.castVote(currentVoteId, false);
+      } catch (e) {
+        showError('Ошибка голосования: ' + (e && e.message ? e.message : 'unknown'));
+      }
+    });
+
+    // ===== Авто-судья: модалки ночи и голосования =====
+
+    function getNightActionType() {
+      if (currentRole === 'mafia' || currentRole === 'don') return 'mafiaShot';
+      if (currentRole === 'sheriff') return 'sheriffCheck';
+      return null;
+    }
+
+    function isNightActiveRole() {
+      return ['mafia', 'don', 'sheriff'].indexOf(currentRole) !== -1;
+    }
+
+    function getNightModalTitle() {
+      if (currentRole === 'mafia') return '🔫 Мафия: выберите цель';
+      if (currentRole === 'don') return '🎩 Дон: проверка + выстрел';
+      if (currentRole === 'sheriff') return '🔍 Шериф: проверка';
+      return '🌙 Ночь';
+    }
+
+    function getNightModalDesc() {
+      if (currentRole === 'mafia' || currentRole === 'don') return 'В кого стреляет мафия?';
+      if (currentRole === 'sheriff') return 'Кого проверяет шериф?';
+      return '';
+    }
+
+    function renderSeatGrid(containerId, selectedId, onSelectFn) {
+      var container = byId(containerId);
+      if (!container) return;
+      container.innerHTML = '';
+      for (var s = 1; s <= 10; s++) {
+        (function (seat) {
+          var btn = document.createElement('button');
+          btn.className = 'seat-btn' + (seat === selectedId ? ' selected' : '');
+          btn.textContent = String(seat);
+          if (Number(currentSeat) === seat) btn.disabled = true;
+          btn.addEventListener('click', function () {
+            onSelectFn(seat);
+          });
+          container.appendChild(btn);
+        })(s);
+      }
+    }
+
+    function showNightModal() {
+      if (!isNightActiveRole()) return;
+      nightActionSent = false;
+      nightSelectedTarget = null;
+      byId('night-modal-title').textContent = getNightModalTitle();
+      byId('night-modal-desc').textContent = getNightModalDesc();
+      byId('night-waiting').style.display = 'none';
+      byId('night-confirm-btn').disabled = true;
+      renderSeatGrid('night-seat-grid', null, function selectNight(seat) {
+        nightSelectedTarget = seat;
+        renderSeatGrid('night-seat-grid', seat, selectNight);
+        byId('night-confirm-btn').disabled = false;
+      });
+      byId('night-action-modal').classList.add('visible');
+    }
+
+    function hideNightModal() {
+      byId('night-action-modal').classList.remove('visible');
+    }
+
+    function showVoteModal() {
+      voteActionSent = false;
+      voteSelectedTarget = null;
+      byId('vote-waiting').style.display = 'none';
+      byId('vote-confirm-btn').disabled = true;
+      renderSeatGrid('vote-seat-grid', null, function selectVote(seat) {
+        voteSelectedTarget = seat;
+        renderSeatGrid('vote-seat-grid', seat, selectVote);
+        byId('vote-confirm-btn').disabled = false;
+      });
+      byId('vote-action-modal').classList.add('visible');
+    }
+
+    function hideVoteModal() {
+      byId('vote-action-modal').classList.remove('visible');
+    }
+
+    // Кнопка подтверждения ночного действия
+    byId('night-confirm-btn').addEventListener('click', async function () {
+      if (!nightSelectedTarget || nightActionSent) return;
+      nightActionSent = true;
+      try {
+        var actionType = getNightActionType();
+        if (!actionType) return;
+        if (currentRole === 'don') {
+          await window.SportMafiaSync.sendNightAction(nightSelectedTarget, 'donCheck');
+          await window.SportMafiaSync.sendNightAction(nightSelectedTarget, 'mafiaShot');
+        } else {
+          await window.SportMafiaSync.sendNightAction(nightSelectedTarget, actionType);
+        }
+        byId('night-confirm-btn').disabled = true;
+        byId('night-waiting').style.display = 'block';
+      } catch (e) {
+        nightActionSent = false;
+        showError('Ошибка ночного действия: ' + (e.message || 'unknown'));
+      }
+    });
+
+    // Кнопка подтверждения голоса
+    byId('vote-confirm-btn').addEventListener('click', async function () {
+      if (!voteSelectedTarget || voteActionSent) return;
+      voteActionSent = true;
+      try {
+        await window.SportMafiaSync.proposeDayAction('vote', voteSelectedTarget);
+        byId('vote-confirm-btn').disabled = true;
+        byId('vote-waiting').style.display = 'block';
+      } catch (e) {
+        voteActionSent = false;
+        showError('Ошибка голосования: ' + (e.message || 'unknown'));
+      }
+    });
+
+    // Кнопка "воздержаться"
+    byId('vote-skip-btn').addEventListener('click', function () {
+      hideVoteModal();
+    });
+
+    // Реакция на изменения settings + phase
+    function onSettingsOrPhaseChanged() {
+      // Управление видимостью кнопок фолов
+      var foulPanel = byId('players-list');
+      if (foulPanel) {
+        var foulBtns = foulPanel.querySelectorAll('[data-action^="foul"]');
+        for (var i = 0; i < foulBtns.length; i++) {
+          foulBtns[i].style.display = roomSettings.autoFouls === false ? 'none' : '';
+        }
+      }
+
+      // Авто-голосование: показать модалку при PHASE_VOTING
+      if (roomSettings.autoVoting && currentPhase === 'PHASE_VOTING' && !voteActionSent) {
+        showVoteModal();
+      } else if (currentPhase !== 'PHASE_VOTING') {
+        hideVoteModal();
+        voteActionSent = false;
+      }
+
+      // Авто-ночь: показать модалку при PHASE_NIGHT
+      if (roomSettings.autoNight && currentPhase === 'PHASE_NIGHT' && isNightActiveRole() && !nightActionSent) {
+        showNightModal();
+      } else if (currentPhase !== 'PHASE_NIGHT') {
+        hideNightModal();
+        nightActionSent = false;
+      }
+    }
+
+    function bindSettings() {
+      if (settingsUnsub) { settingsUnsub(); settingsUnsub = null; }
+      try {
+        settingsUnsub = window.SportMafiaSync.listenToRoomSettings(function (s) {
+          roomSettings = s || {};
+          onSettingsOrPhaseChanged();
+        });
+      } catch (e) { /* комната ещё не готова */ }
+    }
+
+    renderPlayersList();
+    document.addEventListener('DOMContentLoaded', connect);
+  </script>
+</body>
+</html>
