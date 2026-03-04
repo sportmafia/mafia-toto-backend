@@ -1,6 +1,6 @@
 (function () {
   var BACKENDS = {
-    production: 'https://sportmafia.onrender.com',
+    production: 'https://mafia-api-9z0w.onrender.com',
     local: ''
   };
 
